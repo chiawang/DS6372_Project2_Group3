@@ -1,0 +1,60 @@
+---
+title: "Prelim EDA"
+author: "Stats 2 Project Team"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(naniar)
+```
+
+# Background
+https://www.hindawi.com/journals/bmri/2014/781670/
+http://downloads.hindawi.com/journals/bmri/2014/781670.pdf
+
+To Do: Provide summary of paper, site as reference. 
+_Beata Strack, Jonathan P. DeShazo, Chris Gennings, Juan L. Olmo, Sebastian Ventura, Krzysztof J. Cios, and John N. Clore, “Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records,” BioMed Research International, vol. 2014, Article ID 781670, 11 pages, 2014._
+
+# Data Set
+https://archive.ics.uci.edu/ml/datasets/diabetes+130-us+hospitals+for+years+1999-2008
+
+The following is taken verbatim from above.
+
+The dataset represents 10 years (1999-2008) of clinical care at 130 US hospitals and integrated delivery networks. It includes over 50 features representing patient and hospital outcomes. Information was extracted from the database for encounters that satisfied the following criteria.
+
+* It is an inpatient encounter (a hospital admission).
+* It is a diabetic encounter, that is, one during which any kind of diabetes was entered to the system as a diagnosis.
+* The length of stay was at least 1 day and at most 14 days.
+* Laboratory tests were performed during the encounter.
+* Medications were administered during the encounter.
+
+The data contains such attributes as patient number, race, gender, age, admission type, time in hospital, medical specialty of admitting physician, number of lab test performed, HbA1c test result, diagnosis, number of medication, diabetic medications, number of outpatient, inpatient, and emergency visits in the year before the hospitalization, etc.
+
+## Dictionary
+
+To Do: Provide dictionary of elements. This is provided in the paper's pdf. Let's copy it here and reference page 3 of Impact of HbA1c Measurement on Hospital Readmission Rates: Analysis of 70,000 Clinical Database Patient Records pdf document. The table can also be found here,
+
+https://www.hindawi.com/journals/bmri/2014/781670/tab1/
+
+## Import Data
+```{r import}
+data <- read_csv("diabetic_data.csv")
+head(data)
+```
+
+Notice above that we having missing values represented by '?'.
+
+```{r replace_missing}
+data <- data %>% mutate_all(~na_if(., '?'))
+```
+
+
+```{r missing_percent}
+gg_miss_var(data, show_pct=TRUE) + labs(title="Percent Missing by Data Field") +
+  theme(legend.position = "none",plot.title = element_text(hjust = 0.5),axis.title.y=element_text(angle=0,vjust=1))
+```
+
