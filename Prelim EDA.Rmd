@@ -11,6 +11,7 @@ library(knitr)
 library(tidyverse)
 library(naniar)
 library(questionr)
+library(rebus)
 ```
 
 # Background
@@ -71,4 +72,137 @@ Things to consider
 * Discharge Disposition - we should consider removing those related to hospice or death
 * Consider grouping DX codes.
 * Need to do something with age
+* To Do - Consider using only the first encounter for a patient!!!!
+
+# Remove observations where discharge dispostion is related to hospice or death
+```{r discharge}
+data <- data %>% filter(!data$discharge_disposition_id %in% c('11','13','14','19','20','21'))
+```
+
+# Create Buckets for Diagnosis Codes
+Creating buckets for the ICD-9 codes, based on the following.
+https://www.hindawi.com/journals/bmri/2014/781670/tab2/
+
+```{r helper}
+replaceDX <- function(df = data, rx, replaceValue) {
+  df$diag_1[grep(rx,df$diag_1)] <- replaceValue
+  df$diag_2[grep(rx,df$diag_2)] <- replaceValue
+  df$diag_3[grep(rx,df$diag_3)] <- replaceValue
+  
+  return(df)
+}
+```
+
+```{r}
+
+# Create temporary data frame of bucketed DX codes
+
+dx <- c("diag_1","diag_2","diag_3")
+dataDX <- data[dx]
+
+# Circulatory
+label <- "Circulatory"
+rx <- number_range(390,459)
+dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "785", label)
+
+# Respiratory
+label <- "Respiratory"
+rx <- number_range(460,519)
+dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "786", label)
+
+# Digestive
+label <- "Digestive"
+rx <- number_range(520,579)
+dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "787", label)
+
+# Diabetes
+label <- "Diabetes"
+rx <- number_range(250,250.99)
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Injury
+label <- "Injury"
+rx <- number_range(800,999)
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Musculoskeletal
+label <- "Musculoskeletal"
+rx <- number_range(710,739)
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Genitourinary
+label <- "Genitourinary"
+rx <- number_range(580,629)
+dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "788", label)
+
+# Neoplasms
+label <- "Neoplasms"
+
+rx <- number_range(140,239)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(780,782)
+dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "784", label)
+
+rx <- number_range(790,799)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(240,279)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(680,709)
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Number range here doesn't work as I would expect, probably because it spans 1 to 3 digits
+# So I'll just create my own regEx object
+# rx <- number_range(100,139)
+rx <- regex("(?:^([1-9]|[1-8][0-9]|9[0-9]|1[0-2][0-9]|13[0-9])$)")
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Other
+label = "Other"
+
+rx = "^E.*"
+dataDX <- replaceDX(dataDX, rx, label)
+rx = "^V.*"
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(290,319)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(280,289)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(320,359)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(630,679)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(360,389)
+dataDX <- replaceDX(dataDX, rx, label)
+
+rx <- number_range(740,759)
+dataDX <- replaceDX(dataDX, rx, label)
+
+# Now update main data table and set DX buckets as factors
+data[dx] <- dataDX
+
+data$diag_1 <- as.factor(data$diag_1)
+data$diag_2 <- as.factor(data$diag_2)
+data$diag_3 <- as.factor(data$diag_3)
+```
+
+Now let's check what levels we have. Looks like we still have codes 789 and 783, but paper didn't call them out. It could be that we still need to reduce the data set to the 60K+ observations they used. We can easily add them to the "Other" bucket if needed though.
+
+```{r}
+count(data, data$diag_1)
+```
+
+
 
