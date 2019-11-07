@@ -1,0 +1,810 @@
+---
+title: "EDA"
+author: "Stuart Miller"
+date: "November 4, 2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, setup, warning=FALSE, message=FALSE, include=FALSE}
+
+library(tidyverse)
+library(gridExtra)
+
+# load data
+data <- 
+  as.data.frame(
+    read_csv('./diabetic_data.csv',
+             col_types = cols(
+               encounter_id = col_integer(),
+               patient_nbr = col_integer(),
+               race = col_factor(levels = c("?", "AfricanAmerican", "Asian", "Caucasian", "Hispanic", "Other")),
+               gender = col_factor(levels = c("Male","Female")),
+               age = col_factor(levels = c("[0-10)", "[10-20)", "[20-30)","[30-40)","[40-50)","[50-60)",
+                                           "[60-70)","[70-80)","[80-90)","[90-100)")),
+               weight = col_character(),
+               admission_type_id = col_integer(),
+               discharge_disposition_id = col_integer(),
+               admission_source_id = col_integer(),
+               time_in_hospital = col_integer(),
+               payer_code = col_character()
+             )
+    )
+  )
+
+```
+
+## EDA
+
+### Demographics
+
+Demographic variables
+
+* race
+* gender
+* age
+* weight
+
+#### Race
+
+Most patients are Caucasian followed by African American.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = race)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = race, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Gender
+
+Gender is close to an even split of the patient records. 
+
+```{r, fig.width=12}
+p1 <- data %>%
+  ggplot(aes(x = gender)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = gender, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Age
+
+The bulk of the patients are in the age range of 40 - 90 years.
+
+```{r, fig.width=12}
+p1 <- data %>%
+  ggplot(aes(x = age)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = age, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Weight
+
+Weight is almost entirely missing from the patient records.
+
+```{r}
+data %>%
+  ggplot(aes(x = weight)) +
+  geom_bar()
+```
+
+
+### Hospital Infromation
+
+Hospital Information Variables
+
+* Admission Type ID
+* Discharge Disposition ID
+* Admission Source ID
+* Time in Hospital
+* Payer Code
+* Medical Specialty
+
+#### Admission Type ID
+
+The levels of this factor are 1-8.
+The bulk of the data come from type 1, followed by 2 and 3, then 5 and 6.
+Finally, a small amount from 8.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = admission_type_id)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = admission_type_id, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Discharge Disposition ID
+
+The levels of this factor are 1-29. 
+The bulk of the data come from type 1.
+The next highest levels are types 3 and 6.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = discharge_disposition_id)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = discharge_disposition_id, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Admission Source ID
+
+This is a 21 level factor variable.
+Most obervations are type 6, followed by type 1.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = admission_source_id)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = admission_source_id, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Time in Hospital
+
+This is the number of days a patient spent in the hospital.
+The distribution is at max at 3 days, then tails off at the time increases.
+Maximum observed value is 14 days.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = time_in_hospital)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = time_in_hospital, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Payer Code
+
+Many of the payer codes are unknown.
+The most common known payer code is `MC`.
+Most options have relatively low frequencies.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = payer_code)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = payer_code, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+
+#### Medical Specialty
+
+Most records list unknown medical speciality.
+This could be due to the hospital not having a medical speciality.
+
+```{r}
+data %>%
+  ggplot(aes(x = medical_specialty)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+### Encounter Information
+
+* Number of Lab Procedures
+* Number of Procedures
+* Number of Medications
+* Number of Outpatient Visits
+* Number of Inpatient Visits
+* Number of Emergecy Visits
+
+#### Number of Lab Procedures
+
+The number of lab procedures appears to be consistent across the response classes.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = num_lab_procedures)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = num_lab_procedures)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+#### Number of Procedures
+
+The number of procedures appears to be consistent across the response classes.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = num_procedures)) +
+  geom_bar() 
+p2 <- data %>%
+  ggplot(aes(y = num_procedures)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+#### Number of Medications
+
+The number of medications appears to be consistent across the response classes.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = num_medications)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = num_medications)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+#### Number of Outpatient Visits
+
+The number of recorded outpatient visits is dominated by 0.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = number_outpatient)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = number_outpatient)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+#### Number of Inpatient Visits
+
+The number of recorded inpatient visits is dominated by 0.
+There does appear to be a difference between the distributes of inpatient visits and readmittence rate.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = number_inpatient)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = number_inpatient)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+#### Number of Emergency Visits
+
+The number of recorded emergency visits is dominated by 0.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = number_emergency)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = number_emergency)) +
+  geom_boxplot() + 
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1,p2, ncol = 2)
+```
+
+
+### Diagnosis
+
+* Diagnosis 1
+* Diagnosis 2
+* Diagnosis 3
+* Number of Diagnoses
+
+#### Diagnosis 1
+
+Very large number of factor levels, just displaying the top ones here.
+
+```{r}
+data$diag_1 <- as.factor(data$diag_1)
+
+data %>%
+  mutate(diag_1 = as.factor(diag_1)) %>%
+  group_by(diag_1) %>%
+  summarise(cnt = n()) %>%
+  filter(cnt > 2000) %>%
+  ggplot(aes(x = reorder(diag_1, -cnt), y= cnt)) +
+  geom_bar(stat="identity") 
+```
+
+
+#### Diagnosis 2
+
+Very large number of factor levels, just displaying the top ones here.
+
+```{r}
+data$diag_2 <- as.factor(data$diag_2)
+
+data %>%
+  mutate(diag_2 = as.factor(diag_2)) %>%
+  group_by(diag_2) %>%
+  summarise(cnt = n()) %>%
+  filter(cnt > 2000) %>%
+  ggplot(aes(x = reorder(diag_2, -cnt), y= cnt)) +
+  geom_bar(stat="identity") 
+```
+
+
+#### Diagnosis 3
+
+Very large number of factor levels, just displaying the top ones here.
+
+```{r}
+data$diag_3 <- as.factor(data$diag_3)
+
+data %>%
+  mutate(diag_3 = as.factor(diag_3)) %>%
+  group_by(diag_3) %>%
+  summarise(cnt = n()) %>%
+  filter(cnt > 1500) %>%
+  ggplot(aes(x = reorder(diag_3, -cnt), y= cnt)) +
+  geom_bar(stat="identity") 
+```
+
+
+#### Number of Diagnoses
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = number_diagnoses)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = number_diagnoses)) +
+  geom_boxplot() +
+  facet_wrap(. ~ readmitted)
+grid.arrange(p1, p2, ncol = 2)
+data %>%
+  ggplot(aes(x = number_diagnoses, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+```
+
+### Lab Results and Medications
+
+* Glucose Serum Test
+* A1c Test Result
+* Change of Medications
+* Diabetes Medications
+* 24 features for medications
+
+#### Glucose Serum Test
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = max_glu_serum)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = max_glu_serum, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### A1c Test Result
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = A1Cresult)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = A1Cresult, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+
+#### Change of Medications
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = change)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = change, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Diabetes Medications
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = diabetesMed)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = diabetesMed, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+
+#### Metformin
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = metformin)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = metformin, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Repaglinide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = repaglinide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = repaglinide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Nateglinide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = nateglinide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = nateglinide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Chlorpropamide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = chlorpropamide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = chlorpropamide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glimepiride
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = glimepiride)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = glimepiride, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Acetohexamide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = acetohexamide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = acetohexamide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glipizide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = glipizide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = glipizide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glyburide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = glyburide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = glyburide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Tolbutamide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = tolbutamide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = tolbutamide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Pioglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = pioglitazone)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = pioglitazone, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Rosiglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = )) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = , fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Acarbose
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = acarbose)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = acarbose, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Miglitol
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = miglitol)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = miglitol, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Troglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = troglitazone)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = troglitazone, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Tolazamide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = tolazamide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = tolazamide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Examide
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = examide)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = examide, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Citoglipton
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = citoglipton)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = , fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Insulin
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = citoglipton)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = , fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glyburide-metformin
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = `glyburide-metformin`)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = `glyburide-metformin`, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glipizide-metformin
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = `glipizide-metformin`)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = `glipizide-metformin`, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Glimizide-pioglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = `glimepiride-pioglitazone`)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = `glimepiride-pioglitazone`, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Metformin-rosiglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = `metformin-rosiglitazone`)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = `metformin-rosiglitazone`, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+#### Metformin-pioglitazone
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = `metformin-pioglitazone`)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = `metformin-pioglitazone`, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
