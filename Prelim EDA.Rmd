@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
 library(tidyverse)
 library(naniar)
+library(questionr)
 ```
 
 # Background
@@ -46,15 +47,28 @@ data <- read_csv("diabetic_data.csv")
 head(data)
 ```
 
-Notice above that we having missing values represented by '?'.
+Notice above that we having missing values represented by '?'. Let's replace '?' with NA.
 
 ```{r replace_missing}
 data <- data %>% mutate_all(~na_if(., '?'))
 ```
 
+Check variables with missing values.
 
 ```{r missing_percent}
 gg_miss_var(data, show_pct=TRUE) + labs(title="Percent Missing by Data Field") +
   theme(legend.position = "none",plot.title = element_text(hjust = 0.5),axis.title.y=element_text(angle=0,vjust=1))
 ```
+
+Table alternative, I think I like this better.
+
+```{r}
+freq.na(data)
+```
+
+Things to consider
+
+* Discharge Disposition - we should consider removing those related to hospice or death
+* Consider grouping DX codes.
+* Need to do something with age
 
