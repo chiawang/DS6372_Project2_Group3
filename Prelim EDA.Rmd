@@ -79,6 +79,12 @@ Things to consider
 data <- data %>% filter(!data$discharge_disposition_id %in% c('11','13','14','19','20','21'))
 ```
 
+# Let's only use the first encounter for a given patient_nbr. Assume the first encounter is the lowest.
+```{r oneEncounter}
+data <- data %>% group_by(patient_nbr) %>% filter(encounter_id == min(encounter_id))
+```
+
+
 # Create Buckets for Diagnosis Codes
 Creating buckets for the ICD-9 codes, based on the following.
 https://www.hindawi.com/journals/bmri/2014/781670/tab2/
@@ -160,7 +166,7 @@ dataDX <- replaceDX(dataDX, rx, label)
 
 # Number range here doesn't work as I would expect, probably because it spans 1 to 3 digits
 # So I'll just create my own regEx object
-# rx <- number_range(100,139)
+# rx <- number_range(1,139)
 rx <- regex("(?:^([1-9]|[1-8][0-9]|9[0-9]|1[0-2][0-9]|13[0-9])$)")
 dataDX <- replaceDX(dataDX, rx, label)
 
@@ -201,8 +207,16 @@ data$diag_3 <- as.factor(data$diag_3)
 Now let's check what levels we have. Looks like we still have codes 789 and 783, but paper didn't call them out. It could be that we still need to reduce the data set to the 60K+ observations they used. We can easily add them to the "Other" bucket if needed though.
 
 ```{r}
-count(data, data$diag_1)
+# Use plyr here, it looks better
+plyr::count(data$diag_1)
 ```
 
+Let's create an outcome column that is Yes if admitted within 30 days, and No for everything else.
+```{r}
+data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
+plyr::count(data$outcome)
+```
 
+Above we see that about 10% of our data shows as readmitted, so we have an inbalanced data set. Need to consider that in our analysis. See 
+https://towardsdatascience.com/methods-for-dealing-with-imbalanced-data-5b761be45a18
 
