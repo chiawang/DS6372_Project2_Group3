@@ -12,6 +12,7 @@ library(tidyverse)
 library(naniar)
 library(questionr)
 library(rebus)
+library(GGally)
 ```
 
 # Background
@@ -44,7 +45,7 @@ https://www.hindawi.com/journals/bmri/2014/781670/tab1/
 
 ## Import Data
 ```{r import}
-data <- read_csv("diabetic_data.csv")
+data <- read.csv("diabetic_data.csv")
 head(data)
 ```
 
@@ -74,18 +75,18 @@ Things to consider
 * Need to do something with age
 * To Do - Consider using only the first encounter for a patient!!!!
 
-# Remove observations where discharge dispostion is related to hospice or death
+### Remove observations where discharge dispostion is related to hospice or death
 ```{r discharge}
 data <- data %>% filter(!data$discharge_disposition_id %in% c('11','13','14','19','20','21'))
 ```
 
-# Let's only use the first encounter for a given patient_nbr. Assume the first encounter is the lowest.
+### Let's only use the first encounter for a given patient_nbr. Assume the first encounter is the lowest.
 ```{r oneEncounter}
 data <- data %>% group_by(patient_nbr) %>% filter(encounter_id == min(encounter_id))
 ```
 
 
-# Create Buckets for Diagnosis Codes
+### Create Buckets for Diagnosis Codes
 Creating buckets for the ICD-9 codes, based on the following.
 https://www.hindawi.com/journals/bmri/2014/781670/tab2/
 
@@ -104,7 +105,9 @@ replaceDX <- function(df = data, rx, replaceValue) {
 # Create temporary data frame of bucketed DX codes
 
 dx <- c("diag_1","diag_2","diag_3")
+#dataDX <- data.frame(data[dx],stringsAsFactors = FALSE)
 dataDX <- data[dx]
+dataDX[] <- lapply(data[dx], as.character)
 
 # Circulatory
 label <- "Circulatory"
@@ -197,11 +200,13 @@ rx <- number_range(740,759)
 dataDX <- replaceDX(dataDX, rx, label)
 
 # Now update main data table and set DX buckets as factors
-data[dx] <- dataDX
+data[dx] <- lapply(dataDX, as.factor)
 
-data$diag_1 <- as.factor(data$diag_1)
-data$diag_2 <- as.factor(data$diag_2)
-data$diag_3 <- as.factor(data$diag_3)
+#data$diag_1 <- as.factor(data$diag_1)
+#data$diag_2 <- as.factor(data$diag_2)
+#data$diag_3 <- as.factor(data$diag_3)
+
+#data <- data.frame(data[dx],stringsAsFactors = TRUE)
 ```
 
 Now let's check what levels we have. Looks like we still have codes 789 and 783, but paper didn't call them out. It could be that we still need to reduce the data set to the 60K+ observations they used. We can easily add them to the "Other" bucket if needed though.
@@ -219,4 +224,20 @@ plyr::count(data$outcome)
 
 Above we see that about 10% of our data shows as readmitted, so we have an inbalanced data set. Need to consider that in our analysis. See 
 https://towardsdatascience.com/methods-for-dealing-with-imbalanced-data-5b761be45a18
+
+### Adding in stuff based on Dr. Turner's R file, things to consider.
+
+* Also add in EDA stuff from Project 1
+* Based on DX groups alone, the percentage seems to be equally split for Yes/No
+* Simple plots show days in hospital and number of inpatient days are signficant.
+
+```{r}
+#aggregate is good for summary stats by groups for continous predictors
+#aggregate(data$time_in_hospital ~ data$outcome, data = data, summary)
+
+#Visualize
+plot(data$outcome ~ data$time_in_hospital,col=c("red","blue"))
+plot(data$outcome ~ data$age,col=c("red","blue"))
+```
+
 
