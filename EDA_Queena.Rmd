@@ -1,0 +1,77 @@
+---
+title: "QueenaEDA"
+author: "Queena"
+date: "November 9, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import & Clean Data
+
+```{r data cleansing, echo=FALSE}
+
+## impoart data
+diabeticData <- read.csv("diabetic_data.csv")
+
+## delete multiple columns (weight, payer_code, medical_specialty, diag_2, diag_3) that don't have complete data
+## Weight is missing 98% of records
+## Payer code and Medical Specialy have around 40~60% missing values
+diabeticData$weight <- diabeticData$payer_code <-diabeticData$medical_specialty <- NULL
+
+# remove columns that has no data
+diabeticData <- diabeticData[diabeticData$race != "?",]
+diabeticData <- diabeticData[diabeticData$diag_1 != "?",]
+diabeticData <- diabeticData[diabeticData$diag_2 != "?",]
+diabeticData <- diabeticData[diabeticData$diag_3 != "?",]
+
+```
+
+## Re-admission frequency vs. Race/Gender
+
+```{r readmission frequency}
+
+# zero means no readmission after 30 days, 1 means readmission within 30 days
+diabeticData$readmitted_less_30_days <- ifelse(diabeticData$readmitted == "<30",1,0) 
+
+# readmission frequency
+table(diabeticData$readmitted)
+table(diabeticData$readmitted_less_30_days)
+patients_numbers <- table(diabeticData$readmitted_less_30_days)
+barplot(patients_numbers,col=c("darkblue","red"),  legend = rownames(patients_numbers), xlab = "Diabetic Patinet Number", ylab= "<30 days, 1 is true, 0 is fale" ,main= "Readmission within 30 days", horiz=TRUE)
+
+## re-admission vs race
+readmission_vs_race <- table(diabeticData$readmitted_less_30_days,diabeticData$race)
+readmission_vs_race
+barplot(readmission_vs_race,col=c("darkblue","red"), legend = rownames(readmission_vs_gender), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
+
+## re-admission vs gender
+readmission_vs_gender  <- table(diabeticData$readmitted_less_30_days,diabeticData$gender)
+readmission_vs_gender
+barplot(readmission_vs_gender,col=c("darkblue","red"),legend = rownames(readmission_vs_gender), xlab = "Diabetic Patient Number",ylab="Gender", main= "Re-admission within 30 Days vs Gender", horiz=TRUE)
+
+## re-admission vs Age
+readmission_vs_age  <- table(diabeticData$readmitted_less_30_days,diabeticData$age)
+readmission_vs_age
+barplot(readmission_vs_age,col=c("darkblue","red"),legend = rownames(readmission_vs_gender), xlab = "Age Group",ylab="Diabetic Patient Number", main= "Re-admission within 30 Days vs Age")
+
+
+## re-admission vs insulin
+readmission_vs_insulin  <- table(diabeticData$readmitted_less_30_days,diabeticData$insulin)
+readmission_vs_insulin
+barplot(readmission_vs_insulin,col=c("darkblue","red"),legend = rownames(readmission_vs_insulin), xlab = "insulin",ylab="Diabetic Patient Number", main= "Re-admission within 30 Days vs insulin")
+
+## re-admission vs diabetesMed
+readmission_vs_diabetesMed <- table(diabeticData$readmitted_less_30_days,diabeticData$diabetesMed)
+readmission_vs_diabetesMed
+barplot(readmission_vs_diabetesMed,col=c("darkblue","red"),legend = rownames(readmission_vs_diabetesMed), xlab = "diabetesMed",ylab="Diabetic Patient Number", main= "Re-admission within 30 Days vs diabetesMed")
+
+## re-admission vs time_in_hospital
+readmission_vs_time_in_hospital<- table(diabeticData$readmitted_less_30_days,diabeticData$time_in_hospital)
+readmission_vs_time_in_hospital
+barplot(readmission_vs_time_in_hospital,col=c("darkblue","red"),legend = rownames(readmission_vs_time_in_hospital), xlab = "time_in_hospital",ylab="Diabetic Patient Number", main= "Re-admission within 30 Days vs time_in_hospital")
+
+
+```
