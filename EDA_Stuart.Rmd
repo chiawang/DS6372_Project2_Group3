@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(gridExtra)
+library(rebus)
 
 # load data
 data <- 
@@ -38,6 +39,22 @@ data <-
 ```
 
 ## EDA
+
+### Some Cleaning
+
+Some cleaning from Dan's research
+
+```{r}
+# NA coersion
+data <- data %>% mutate_all(~na_if(., '?'))
+# Remove observations where discharge dispostion is related to hospice or death
+data <- data %>% filter(!data$discharge_disposition_id %in% c('11','13','14','19','20','21'))
+# Let's only use the first encounter for a given patient_nbr. Assume the first encounter is the lowest.
+data <- data %>% group_by(patient_nbr) %>% filter(encounter_id == min(encounter_id))
+# recode the outcomes to yes/no
+data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
+```
+
 
 ### Demographics
 
@@ -80,7 +97,8 @@ grid.arrange(p1, p2, ncol = 2)
 
 #### Age
 
-The bulk of the patients are in the age range of 40 - 90 years.
+* The bulk of the patients are in the age range of 40 - 90 years.
+* The proportion of readimts increase from the lowest bucket up to the 80s bucket.
 
 ```{r, fig.width=12}
 p1 <- data %>%
@@ -590,10 +608,10 @@ grid.arrange(p1, p2, ncol = 2)
 
 ```{r}
 p1 <- data %>%
-  ggplot(aes(x = )) +
+  ggplot(aes(x = rosiglitazone)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = , fill = readmitted)) +
+  ggplot(aes(x = rosiglitazone, fill = readmitted)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -671,7 +689,7 @@ p1 <- data %>%
   ggplot(aes(x = citoglipton)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = , fill = readmitted)) +
+  ggplot(aes(x = citoglipton, fill = readmitted)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -684,7 +702,7 @@ p1 <- data %>%
   ggplot(aes(x = citoglipton)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = , fill = readmitted)) +
+  ggplot(aes(x = citoglipton, fill = readmitted)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
