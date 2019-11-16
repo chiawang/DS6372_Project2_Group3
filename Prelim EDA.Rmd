@@ -13,6 +13,7 @@ library(naniar)
 library(questionr)
 library(rebus)
 library(GGally)
+library(gridExtra)
 ```
 
 # Background
@@ -239,5 +240,67 @@ https://towardsdatascience.com/methods-for-dealing-with-imbalanced-data-5b761be4
 plot(data$outcome ~ data$time_in_hospital,col=c("red","blue"))
 plot(data$outcome ~ data$age,col=c("red","blue"))
 ```
+
+### Proportion Plots
+
+#### Age
+
+* The bulk of the patients are in the age range of 40 - 90 years.
+* The proportion of readimts increase from the lowest bucket up to the 80s bucket.
+
+```{r, fig.width=12}
+p1 <- data %>%
+  ggplot(aes(x = age)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = age, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, ncol = 2)
+```
+
+
+#### Time in Hospital
+
+This is the number of days a patient spent in the hospital.
+The distribution is at max at 3 days, then tails off at the time increases.
+Maximum observed value is 14 days.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = time_in_hospital)) +
+  geom_bar()
+p2 <- data %>%
+  ggplot(aes(x = time_in_hospital, fill = readmitted)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+p3 <- data %>%
+  ggplot(aes(x = readmitted, y = time_in_hospital)) +
+  geom_boxplot()
+grid.arrange(p1, p2, p3, ncol = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
