@@ -253,7 +253,7 @@ p1 <- data %>%
   ggplot(aes(x = age)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = age, fill = readmitted)) +
+  ggplot(aes(x = age, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -271,16 +271,33 @@ p1 <- data %>%
   ggplot(aes(x = time_in_hospital)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = time_in_hospital, fill = readmitted)) +
+  ggplot(aes(x = time_in_hospital, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 p3 <- data %>%
-  ggplot(aes(x = readmitted, y = time_in_hospital)) +
+  ggplot(aes(x = outcome, y = time_in_hospital)) +
   geom_boxplot()
 grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
+#### Number of Diagnoses
 
+There seem to be a correlation between readmittance and number of diagnoses.
+
+```{r}
+p1 <- data %>%
+  ggplot(aes(x = number_diagnoses)) +
+  geom_histogram(bins = 30) 
+p2 <- data %>%
+  ggplot(aes(y = number_diagnoses)) +
+  geom_boxplot() +
+  facet_wrap(. ~ outcome)
+p3 <- data %>%
+  ggplot(aes(x = number_diagnoses, fill = outcome)) +
+  geom_bar(position = 'fill') +
+  coord_flip()
+grid.arrange(p1, p2, p3, ncol = 2)
+```
 
 
 
