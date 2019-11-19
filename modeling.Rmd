@@ -16,6 +16,8 @@ library(gridExtra)
 library(rebus)
 library(car)
 library(caret)
+#library(doParallel)
+library(pROC)
 
 # load data
 data <- 
@@ -38,6 +40,7 @@ data <-
     )
   )
 
+data <- read_csv('./diabetic_data.csv')
 ```
 
 ### Some Cleaning
@@ -89,7 +92,8 @@ names(up_train)[length(names(up_train))] <- 'outcome'
 model.main<-glm(outcome ~ 
                   number_diagnoses + 
                   time_in_hospital + 
-                  age, 
+                  age +
+                  admission_source_id, 
                 data=up_train, 
                 family = binomial(link="logit"))
 
@@ -104,7 +108,9 @@ summary(model.main)
 train.control <-trainControl(method = "cv",
                              number = 10,
                              summaryFunction = twoClassSummary,
-                             classProbs = TRUE)
+                             classProbs = TRUE,
+                             savePredictions = TRUE
+                             )
 
 model.cv <-train(y = up_train$outcome,
                  x = up_train[, c('age','time_in_hospital')],
@@ -121,11 +127,51 @@ preds <- predict(model.cv, test)
 confusionMatrix(preds, test$outcome)
 ```
 
+```{r}
 
 
+plot.roc(model.cv$pred$obs,
+         model.cv$pred$Yes)
+
+```
+
+```{r}
+# caret implementation
+
+train.control <-trainControl(method = "cv",
+                             number = 10,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             savePredictions = TRUE
+                             )
+
+model.cv <-train(y = up_train$outcome,
+                 x = up_train[, c('time_in_hospital',
+                                  'num_lab_procedures',
+                                  'number_diagnoses',
+                                  'discharge_disposition_id')],
+                 method = 'rf',
+                 metric = 'Spec',
+                 family = 'binomial',
+                 trControl = train.control
+                 )
+
+model.cv
+
+preds <- predict(model.cv, test)
+
+confusionMatrix(preds, test$outcome)
+```
 
 
+```{r}
 
+
+selected.Idx <- model.cv$pred$mtry == 4
+plot.roc(model.cv$pred$obs[selected.Idx],
+         model.cv$pred$Yes[selected.Idx])
+
+```
 
 
 
