@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(gridExtra)
 library(rebus)
+library(epitools)
+library(car)
 
 # load data
 data <- 
@@ -74,7 +76,7 @@ p1 <- data %>%
   ggplot(aes(x = race)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = race, fill = readmitted)) +
+  ggplot(aes(x = race, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -89,7 +91,7 @@ p1 <- data %>%
   ggplot(aes(x = gender)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = gender, fill = readmitted)) +
+  ggplot(aes(x = gender, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -105,7 +107,7 @@ p1 <- data %>%
   ggplot(aes(x = age)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = age, fill = readmitted)) +
+  ggplot(aes(x = age, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -144,7 +146,7 @@ p1 <- data %>%
   ggplot(aes(x = admission_type_id)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = admission_type_id, fill = readmitted)) +
+  ggplot(aes(x = admission_type_id, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -161,7 +163,7 @@ p1 <- data %>%
   ggplot(aes(x = discharge_disposition_id)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = discharge_disposition_id, fill = readmitted)) +
+  ggplot(aes(x = discharge_disposition_id, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -177,7 +179,7 @@ p1 <- data %>%
   ggplot(aes(x = admission_source_id)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = admission_source_id, fill = readmitted)) +
+  ggplot(aes(x = admission_source_id, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -194,10 +196,13 @@ p1 <- data %>%
   ggplot(aes(x = time_in_hospital)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = time_in_hospital, fill = readmitted)) +
+  ggplot(aes(x = time_in_hospital, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
-grid.arrange(p1, p2, ncol = 2)
+p3 <- data %>%
+  ggplot(aes(x = outcome, y = time_in_hospital)) +
+  geom_boxplot()
+grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
 #### Payer Code
@@ -211,7 +216,7 @@ p1 <- data %>%
   ggplot(aes(x = payer_code)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = payer_code, fill = readmitted)) +
+  ggplot(aes(x = payer_code, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -404,12 +409,12 @@ p1 <- data %>%
 p2 <- data %>%
   ggplot(aes(y = number_diagnoses)) +
   geom_boxplot() +
-  facet_wrap(. ~ readmitted)
-grid.arrange(p1, p2, ncol = 2)
-data %>%
-  ggplot(aes(x = number_diagnoses, fill = readmitted)) +
+  facet_wrap(. ~ outcome)
+p3 <- data %>%
+  ggplot(aes(x = number_diagnoses, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
+grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
 ### Lab Results and Medications
@@ -427,7 +432,7 @@ p1 <- data %>%
   ggplot(aes(x = max_glu_serum)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = max_glu_serum, fill = readmitted)) +
+  ggplot(aes(x = max_glu_serum, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -440,7 +445,7 @@ p1 <- data %>%
   ggplot(aes(x = A1Cresult)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = A1Cresult, fill = readmitted)) +
+  ggplot(aes(x = A1Cresult, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -454,7 +459,7 @@ p1 <- data %>%
   ggplot(aes(x = change)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = change, fill = readmitted)) +
+  ggplot(aes(x = change, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -467,7 +472,7 @@ p1 <- data %>%
   ggplot(aes(x = diabetesMed)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = diabetesMed, fill = readmitted)) +
+  ggplot(aes(x = diabetesMed, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -481,7 +486,7 @@ p1 <- data %>%
   ggplot(aes(x = metformin)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = metformin, fill = readmitted)) +
+  ggplot(aes(x = metformin, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -494,7 +499,7 @@ p1 <- data %>%
   ggplot(aes(x = repaglinide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = repaglinide, fill = readmitted)) +
+  ggplot(aes(x = repaglinide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -507,7 +512,7 @@ p1 <- data %>%
   ggplot(aes(x = nateglinide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = nateglinide, fill = readmitted)) +
+  ggplot(aes(x = nateglinide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -520,7 +525,7 @@ p1 <- data %>%
   ggplot(aes(x = chlorpropamide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = chlorpropamide, fill = readmitted)) +
+  ggplot(aes(x = chlorpropamide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -533,7 +538,7 @@ p1 <- data %>%
   ggplot(aes(x = glimepiride)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = glimepiride, fill = readmitted)) +
+  ggplot(aes(x = glimepiride, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -546,7 +551,7 @@ p1 <- data %>%
   ggplot(aes(x = acetohexamide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = acetohexamide, fill = readmitted)) +
+  ggplot(aes(x = acetohexamide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -559,7 +564,7 @@ p1 <- data %>%
   ggplot(aes(x = glipizide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = glipizide, fill = readmitted)) +
+  ggplot(aes(x = glipizide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -572,7 +577,7 @@ p1 <- data %>%
   ggplot(aes(x = glyburide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = glyburide, fill = readmitted)) +
+  ggplot(aes(x = glyburide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -585,7 +590,7 @@ p1 <- data %>%
   ggplot(aes(x = tolbutamide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = tolbutamide, fill = readmitted)) +
+  ggplot(aes(x = tolbutamide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -598,7 +603,7 @@ p1 <- data %>%
   ggplot(aes(x = pioglitazone)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = pioglitazone, fill = readmitted)) +
+  ggplot(aes(x = pioglitazone, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -611,7 +616,7 @@ p1 <- data %>%
   ggplot(aes(x = rosiglitazone)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = rosiglitazone, fill = readmitted)) +
+  ggplot(aes(x = rosiglitazone, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -624,7 +629,7 @@ p1 <- data %>%
   ggplot(aes(x = acarbose)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = acarbose, fill = readmitted)) +
+  ggplot(aes(x = acarbose, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -637,7 +642,7 @@ p1 <- data %>%
   ggplot(aes(x = miglitol)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = miglitol, fill = readmitted)) +
+  ggplot(aes(x = miglitol, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -650,7 +655,7 @@ p1 <- data %>%
   ggplot(aes(x = troglitazone)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = troglitazone, fill = readmitted)) +
+  ggplot(aes(x = troglitazone, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -663,7 +668,7 @@ p1 <- data %>%
   ggplot(aes(x = tolazamide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = tolazamide, fill = readmitted)) +
+  ggplot(aes(x = tolazamide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -676,7 +681,7 @@ p1 <- data %>%
   ggplot(aes(x = examide)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = examide, fill = readmitted)) +
+  ggplot(aes(x = examide, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -689,7 +694,7 @@ p1 <- data %>%
   ggplot(aes(x = citoglipton)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = citoglipton, fill = readmitted)) +
+  ggplot(aes(x = citoglipton, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -702,7 +707,7 @@ p1 <- data %>%
   ggplot(aes(x = citoglipton)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = citoglipton, fill = readmitted)) +
+  ggplot(aes(x = citoglipton, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -715,7 +720,7 @@ p1 <- data %>%
   ggplot(aes(x = `glyburide-metformin`)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = `glyburide-metformin`, fill = readmitted)) +
+  ggplot(aes(x = `glyburide-metformin`, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -728,7 +733,7 @@ p1 <- data %>%
   ggplot(aes(x = `glipizide-metformin`)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = `glipizide-metformin`, fill = readmitted)) +
+  ggplot(aes(x = `glipizide-metformin`, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -741,7 +746,7 @@ p1 <- data %>%
   ggplot(aes(x = `glimepiride-pioglitazone`)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = `glimepiride-pioglitazone`, fill = readmitted)) +
+  ggplot(aes(x = `glimepiride-pioglitazone`, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -754,7 +759,7 @@ p1 <- data %>%
   ggplot(aes(x = `metformin-rosiglitazone`)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = `metformin-rosiglitazone`, fill = readmitted)) +
+  ggplot(aes(x = `metformin-rosiglitazone`, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -767,27 +772,122 @@ p1 <- data %>%
   ggplot(aes(x = `metformin-pioglitazone`)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = `metformin-pioglitazone`, fill = readmitted)) +
+  ggplot(aes(x = `metformin-pioglitazone`, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
 ```
 
 
+### Interactions
+
+```{r}
+table(data[,c(5,10,51)])
+
+mantelhaen.test(table(data[,c(5,10,51)]))
+```
+
+
+### Intraction Profile Plots
+
+```{r, summary_function}
+mysummary<-function(x){
+  result<-c(length(x),mean(x),sd(x),sd(x)/length(x),min(x),max(x),IQR(x))
+  names(result)<-c("N","Mean","SD","SE","Min","Max","IQR")
+  return(result)
+}
+```
+
+#### Age and Time in Hospital
+
+There is separation in the mean time in hospital for each age group,
+but the overlap of varaince is large.
+
+```{r}
+sumstats<-aggregate(time_in_hospital~outcome*age,data=data,mysummary)
+sumstats<-cbind(sumstats[,1:2],sumstats[,-(1:2)])
+
+ggplot(sumstats,aes(x=age,y=Mean,group=outcome,color=outcome)) +
+  ylab("Time in Hospital") +
+  xlab("Patient Age") +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=Mean-SD,ymax=Mean+SD),width=.1)
+```
+
+#### Age and Number of Diagnoses
+
+```{r}
+sumstats<-aggregate(number_diagnoses~outcome*age,data=data,mysummary)
+sumstats<-cbind(sumstats[,1:2],sumstats[,-(1:2)])
+
+ggplot(sumstats,aes(x=age,y=Mean,group=outcome,color=outcome)) +
+  ylab("Number of Diagnoses") +
+  xlab("Patient Age") +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=Mean-SD,ymax=Mean+SD),width=.1)
+```
 
 
 
+#### Discharge Disposition ID and Time in Hospital
 
 
+```{r}
+sumstats<-aggregate(time_in_hospital~outcome*discharge_disposition_id,data=data,mysummary)
+sumstats<-cbind(sumstats[,1:2],sumstats[,-(1:2)])
+
+ggplot(sumstats,aes(x=discharge_disposition_id,y=Mean,group=outcome,color=outcome)) +
+  ylab("Time in Hospital") +
+  xlab("Discharge Disposition ID") +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=Mean-SD,ymax=Mean+SD),width=.1)
+```
+
+#### Discharge Disposition ID and Number of Diagnoses
+
+```{r}
+sumstats<-aggregate(number_diagnoses~outcome*discharge_disposition_id,data=data,mysummary)
+sumstats<-cbind(sumstats[,1:2],sumstats[,-(1:2)])
+
+ggplot(sumstats,aes(x=discharge_disposition_id,y=Mean,group=outcome,color=outcome)) +
+  ylab("Number of Diagnoses") +
+  xlab("Discharge Disposition ID") +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=Mean-SD,ymax=Mean+SD),width=.1)
+```
+
+#### 
 
 
+```{r}
+data %>%
+  ggplot(aes(x = time_in_hospital, y = number_diagnoses, color = outcome)) +
+  geom_jitter(position = "jitter", alpha = 0.1) 
+```
 
 
+####
 
+```{r}
+readmit <- 
+  data %>%
+  filter(outcome %in% 'Yes') %>%
+  group_by(age) %>%
+  summarise(cnt = n())
 
+tot.per.age <- 
+  data %>%
+  group_by(age) %>%
+  summarise(cnt = n())
 
+readmit.prob.per.age <- readmit[, 2]/tot.per.age[, 2]
 
-
+logit(readmit.prob.per.age) + 2
+```
 
 
 
