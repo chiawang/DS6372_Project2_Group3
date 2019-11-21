@@ -14,6 +14,10 @@ library(questionr)
 library(rebus)
 library(GGally)
 library(gridExtra)
+library(caret)
+library(randomForest)
+library(ROCR)
+library(glmnet)
 ```
 
 # Background
@@ -57,38 +61,37 @@ data <- data %>% mutate_all(~na_if(., '?'))
 ```
 
 Check variables with missing values.
-
-```{r missing_percent}
-gg_miss_var(data, show_pct=TRUE) + labs(title="Percent Missing by Data Field") +
-  theme(legend.position = "none",plot.title = element_text(hjust = 0.5),axis.title.y=element_text(angle=0,vjust=1))
-```
-
-Table alternative, I think I like this better.
-
 ```{r}
 freq.na(data)
 ```
 
-Things to consider
+Due to the frequency of missing data, let's remove 'weight', 'medical_specialty', and 'payer_code'.
 
-* Discharge Disposition - we should consider removing those related to hospice or death
-* Consider grouping DX codes.
-* Need to do something with age
-* To Do - Consider using only the first encounter for a patient!!!!
+```{r}
+data <- select(data, select=-c("weight","medical_specialty","payer_code"))
+```
 
-### Remove observations where discharge dispostion is related to hospice or death
+Next, let's remove observations where the discharge disposition is related to hospice or death, since these will not add to the possibility of being readmitted.
+* 11 - Expired
+* 13 - Hospice/Home
+* 14 - Hospice/Medical Facility
+* 19 - Expired at Home
+* 20 - Expired at Medical Facility
+* 21 - Expired at Unknown
+
 ```{r discharge}
 data <- data %>% filter(!data$discharge_disposition_id %in% c('11','13','14','19','20','21'))
 ```
 
-### Let's only use the first encounter for a given patient_nbr. Assume the first encounter is the lowest.
+In the data set, we find that patients have multiple admissions. The paper suggests using only the first one to satisfy the independence assumption. So we will filter and only use the first encounter (the lowest for a given member). I wonder if this could be challenged. If the diagnosis or reason for visit is different than a previous admission, I think it could be considered statisically independent.
+
 ```{r oneEncounter}
 data <- data %>% group_by(patient_nbr) %>% filter(encounter_id == min(encounter_id))
+data <- ungroup(data)
 ```
 
 
-### Create Buckets for Diagnosis Codes
-Creating buckets for the ICD-9 codes, based on the following.
+Next, let's create buckets for the ICD-9 diagnosis codes. We'll use the mapping defined based on the following.
 https://www.hindawi.com/journals/bmri/2014/781670/tab2/
 
 ```{r helper}
@@ -102,11 +105,8 @@ replaceDX <- function(df = data, rx, replaceValue) {
 ```
 
 ```{r}
-
 # Create temporary data frame of bucketed DX codes
-
 dx <- c("diag_1","diag_2","diag_3")
-#dataDX <- data.frame(data[dx],stringsAsFactors = FALSE)
 dataDX <- data[dx]
 dataDX[] <- lapply(data[dx], as.character)
 
@@ -199,47 +199,79 @@ dataDX <- replaceDX(dataDX, rx, label)
 
 rx <- number_range(740,759)
 dataDX <- replaceDX(dataDX, rx, label)
+dataDX <- replaceDX(dataDX, "783", label)
+dataDX <- replaceDX(dataDX, "789", label)
 
-# Now update main data table and set DX buckets as factors
+#If value is "NA", we'll replace with "None"
+#dataDX <- replace_na(dataDX,"None")
+
+# Now update main data table and set DX buckets as factors. Replace NA with None
+dataDX <- lapply(dataDX,replace_na,"None")
 data[dx] <- lapply(dataDX, as.factor)
-
-#data$diag_1 <- as.factor(data$diag_1)
-#data$diag_2 <- as.factor(data$diag_2)
-#data$diag_3 <- as.factor(data$diag_3)
-
-#data <- data.frame(data[dx],stringsAsFactors = TRUE)
 ```
-
-Now let's check what levels we have. Looks like we still have codes 789 and 783, but paper didn't call them out. It could be that we still need to reduce the data set to the 60K+ observations they used. We can easily add them to the "Other" bucket if needed though.
 
 ```{r}
 # Use plyr here, it looks better
 plyr::count(data$diag_1)
 ```
 
-Let's create an outcome column that is Yes if admitted within 30 days, and No for everything else.
+Age is a factor with 10 levels. We are going to bucket these into 3 different groups in a new feature, and remove the old feature.
+
+* 0 - 30
+* 30 - 60
+* 60 - 100
+
+```{r}
+data[which(data$age=="[0-10)"),c("ageGrp")] <- "[0-30]"
+data[which(data$age=="[10-20)"),c("ageGrp")] <- "[0-30]"
+data[which(data$age=="[20-30)"),c("ageGrp")] <- "[0-30]"
+data[which(data$age=="[30-40)"),c("ageGrp")] <- "[30-60]"
+data[which(data$age=="[40-50)"),c("ageGrp")] <- "[30-60]"
+data[which(data$age=="[50-60)"),c("ageGrp")] <- "[30-60]"
+data[is.na(data$ageGrp),c("ageGrp")] <- "[60-100]"
+data$ageGrp <- as.factor(data$ageGrp)
+
+# Remove old feature
+data <- select(data, select=-c("age"))
+```
+
+Convert features with numerals as factors. Perhaps it would be better to convert these to their actual names.
+```{r}
+data$admission_type_id <- as.factor(data$admission_type_id)
+data$discharge_disposition_id <- as.factor(data$discharge_disposition_id)
+data$admission_source_id <- as.factor(data$admission_source_id)
+```
+
+There are two medications that have only 1 factor level, "examide" and "citoglipton". We will remove these from the data set.
+```{r}
+data <- select(data, select=-c("examide","citoglipton"))
+```
+
+Since encounter_id and patient_nbr are identifiers, we will remove these as well.
+```{r}
+# We need to ungroup by patient_nbr since we grouped by it earlier.
+data <- select(data, select=-c("encounter_id","patient_nbr"))
+```
+
+Clean up Race feature NAs and label as "Missing"
+```{r}
+levels(data$race) <- c(levels(data$race), "Missing")
+data$race <- replace_na(data$race, "Missing")
+```
+
+
+
+Lastly, let's create an outcome column that is Yes if admitted within 30 days, and No for everything else. Then remove the readmitted column. We'll use "outcome" as the response variable.
 ```{r}
 data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
+data <- select(data, select=-c("readmitted"))
 plyr::count(data$outcome)
 ```
 
 Above we see that about 10% of our data shows as readmitted, so we have an inbalanced data set. Need to consider that in our analysis. See 
 https://towardsdatascience.com/methods-for-dealing-with-imbalanced-data-5b761be45a18
 
-### Adding in stuff based on Dr. Turner's R file, things to consider.
-
-* Also add in EDA stuff from Project 1
-* Based on DX groups alone, the percentage seems to be equally split for Yes/No
-* Simple plots show days in hospital and number of inpatient days are signficant.
-
-```{r}
-#aggregate is good for summary stats by groups for continous predictors
-#aggregate(data$time_in_hospital ~ data$outcome, data = data, summary)
-
-#Visualize
-plot(data$outcome ~ data$time_in_hospital,col=c("red","blue"))
-plot(data$outcome ~ data$age,col=c("red","blue"))
-```
+The final dataset consists of 69,990 observations with 43 features.
 
 ### Proportion Plots
 
@@ -250,10 +282,10 @@ plot(data$outcome ~ data$age,col=c("red","blue"))
 
 ```{r, fig.width=12}
 p1 <- data %>%
-  ggplot(aes(x = age)) +
+  ggplot(aes(x = ageGrp)) +
   geom_bar()
 p2 <- data %>%
-  ggplot(aes(x = age, fill = outcome)) +
+  ggplot(aes(x = ageGrp, fill = outcome)) +
   geom_bar(position = 'fill') +
   coord_flip()
 grid.arrange(p1, p2, ncol = 2)
@@ -299,13 +331,110 @@ p3 <- data %>%
 grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
+## Modeling
 
+Let's try some different modeling options. Since we have an imbalanced data set, there are different things we can try. Let's start with down sampling.
 
+### Down Sample
 
+```{r}
+trainIdx <- createDataPartition(data$outcome, p =0.75, list = F, times = 1)
+train <- data[trainIdx, ]
+test <- data[-trainIdx, ]
 
+set.seed(9560)
+train <- downSample(x = train[, -ncol(train)],
+                    y = train$outcome, yname="outcome")
 
+train.y = train$outcome
+train.x = train[,-ncol(train)]
 
+test.y = test$outcome
+test.x = test[,-ncol(test)]
+```
 
+### Random Forest Example
+https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+
+Training Set
+```{r}
+train.rf<-randomForest(outcome~.,data=train,importance=T)
+fit.pred<-predict(train.rf,newdata=train,type="prob")
+
+pred <- prediction(fit.pred[,2], train$outcome)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+plot(roc.perf)
+abline(a=0, b= 1)
+text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+```
+
+Test Set
+```{r}
+pred.val1<-predict(train.rf,newdata=test,type="prob")
+pred <- prediction(pred.val1[,2], test$outcome)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.test <- performance(pred, measure = "auc")
+auc.test <- auc.test@y.values
+plot(roc.perf)
+abline(a=0, b=1)
+text(x = .4, y = .6,paste("AUC = ", round(auc.test[[1]],3), sep = ""))
+```
+
+```{r}
+importance(train.rf)
+```
+
+Sampling Tuning Test
+```{r}
+bestmtry <- tuneRF(train.x, train.y, stepFactor=.5, improve=1e-5, ntree=500)
+print(bestmtry)
+```
+
+### Logistic Example
+```{r}
+#glmnet requires a matrix 
+train.x <- data.matrix(train.x)
+cvfit <- cv.glmnet(train.x,train.y, family = "binomial", type.measure = "class", nlambda = 1000)
+plot(cvfit)
+coef(cvfit, s = "lambda.min")
+
+#Get training set predictions...We know they are biased but lets create ROC's.
+#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
+fit.pred <- predict(cvfit, newx = train.x, type = "response")
+
+#Compare the prediction to the real outcome
+head(fit.pred)
+head(train.y)
+
+#Create ROC curves
+pred <- prediction(fit.pred[,1], train.y)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+
+#Plot ROC
+plot(roc.perf)
+abline(a=0, b= 1) #Ref line indicating poor performance
+text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+```
+
+Run model against test set
+```{r}
+#Run model from training set on valid set I
+test.x <- data.matrix(test.x)
+fit.pred1 <- predict(cvfit, newx = test.x, type = "response")
+
+#ROC curves
+pred1 <- prediction(fit.pred1[,1], test.y)
+roc.perf1 = performance(pred1, measure = "tpr", x.measure = "fpr")
+auc.val1 <- performance(pred1, measure = "auc")
+auc.val1 <- auc.val1@y.values
+plot(roc.perf1)
+abline(a=0, b= 1)
+text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
+```
 
 
 
