@@ -17,6 +17,12 @@ library(rebus)
 library(epitools)
 library(car)
 
+mysummary<-function(x){
+  result<-c(length(x),mean(x),sd(x),sd(x)/length(x),min(x),max(x),IQR(x))
+  names(result)<-c("N","Mean","SD","SE","Min","Max","IQR")
+  return(result)
+}
+
 # load data
 data <- 
   as.data.frame(
@@ -790,14 +796,6 @@ mantelhaen.test(table(data[,c(5,10,51)]))
 
 ### Intraction Profile Plots
 
-```{r, summary_function}
-mysummary<-function(x){
-  result<-c(length(x),mean(x),sd(x),sd(x)/length(x),min(x),max(x),IQR(x))
-  names(result)<-c("N","Mean","SD","SE","Min","Max","IQR")
-  return(result)
-}
-```
-
 #### Age and Time in Hospital
 
 There is separation in the mean time in hospital for each age group,
@@ -892,6 +890,11 @@ logit(readmit.prob.per.age) + 2
 
 
 
+```{r}
+library(pwr2)
+pwr.2way(a=2, b=2, alpha=0.05, size.A=30, size.B=30, f.A=NULL, f.B=NULL,
+delta.A=4, delta.B=2, sigma.A=2, sigma.B=2)
+```
 
 
 
