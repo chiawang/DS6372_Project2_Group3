@@ -51,7 +51,7 @@ https://www.hindawi.com/journals/bmri/2014/781670/tab1/
 
 ## Import Data
 ```{r import}
-data <- read.csv("C:/Users/Queen/DS6372_Project2_Group3/diabetic_data.csv")
+data <- read.csv("./diabetic_data.csv")
 head(data)
 ```
 
@@ -395,6 +395,16 @@ plot(roc.perf)
 abline(a=0, b=1)
 text(x = .4, y = .6,paste("AUC = ", round(auc.test[[1]],3), sep = ""))
 ```
+
+**Gini importances plot**
+
+Gini has to do with the cross-entroy of the trees from a split. Decreases in Gini index are desirable.
+
+https://towardsdatascience.com/seeing-the-random-forest-from-the-decision-trees-an-intuitive-explanation-of-random-forest-beaa2d6a0d80
+
+ISL p.312
+
+https://stats.stackexchange.com/questions/92419/relative-importance-of-a-set-of-predictors-in-a-random-forests-classification-in
 
 ```{r}
 importance(train.rf)
