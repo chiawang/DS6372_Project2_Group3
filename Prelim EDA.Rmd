@@ -50,7 +50,7 @@ https://www.hindawi.com/journals/bmri/2014/781670/tab1/
 
 ## Import Data
 ```{r import}
-data <- read.csv("diabetic_data.csv")
+data <- read.csv("C:/Users/Queen/DS6372_Project2_Group3/diabetic_data.csv")
 head(data)
 ```
 
@@ -331,6 +331,18 @@ p3 <- data %>%
 grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
+#### Race vs. Readmission
+There seem to be a correlation between readmittance and race.
+
+```{r}
+# readmission within 30 days
+data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
+
+readmission_vs_race <- table(data$outcome,data$race)
+
+barplot(readmission_vs_race,col=c("#009E73","#D55E00"), legend = rownames(readmission_vs_race), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
+```
+
 ## Modeling
 
 Let's try some different modeling options. Since we have an imbalanced data set, there are different things we can try. Let's start with down sampling.
@@ -437,8 +449,10 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
 ```
 
 
+### HeatMap
+```{r}
 
-
+```
 
 
 
