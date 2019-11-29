@@ -45,7 +45,7 @@ barplot(patients_numbers,col=c("darkblue","red"),  legend = rownames(patients_nu
 ## re-admission vs race
 readmission_vs_race <- table(diabeticData$readmitted_less_30_days,diabeticData$race)
 readmission_vs_race
-barplot(readmission_vs_race,col=c("darkblue","red"), legend = rownames(readmission_vs_gender), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
+barplot(readmission_vs_race,col=c("darkblue","red"), legend = rownames(readmission_vs_race), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
 
 ## re-admission vs gender
 readmission_vs_gender  <- table(diabeticData$readmitted_less_30_days,diabeticData$gender)
