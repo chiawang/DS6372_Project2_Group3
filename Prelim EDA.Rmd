@@ -451,6 +451,15 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
 
 ### HeatMap
 ```{r}
+ggplot(data = data,aes(x = data$race, y = data$age)) +labs(title="(Race & Age) Vs Readmission", y="Patient Age Group", x="Race")+geom_tile(aes(fill = data$readmitted))
+
+ggplot(data = data, aes(x = data$time_in_hospital, y = data$age)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = data$readmitted))
+
+ggplot(data = data, aes(x = data$age, y = data$diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = data$readmitted))
+
+ggplot(data = data, aes(x = data$age, y = data$diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = data$readmitted))
+
+ggplot(data = data, aes(x = data$age, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = data$readmitted))
 
 ```
 
