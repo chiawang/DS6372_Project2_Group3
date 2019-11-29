@@ -26,7 +26,7 @@ mysummary<-function(x){
 # load data
 data <- 
   as.data.frame(
-    read_csv('./diabetic_data.csv',
+    read_csv('../diabetic_data.csv',
              col_types = cols(
                encounter_id = col_integer(),
                patient_nbr = col_integer(),
