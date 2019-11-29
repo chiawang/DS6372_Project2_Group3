@@ -14,12 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r data cleansing, echo=FALSE}
 
 ## impoart data
-<<<<<<< Updated upstream
 diabeticData <- read.csv("../diabetic_data.csv")
-=======
-#diabeticData <- read.csv("diabetic_data.csv")
-diabeticData <- read.csv("C:/Users/Queen/DS6372_Project2_Group3/diabetic_data.csv")
->>>>>>> Stashed changes
 
 ## delete multiple columns (weight, payer_code, medical_specialty, diag_2, diag_3) that don't have complete data
 ## Weight is missing 98% of records
