@@ -19,6 +19,8 @@ library(randomForest)
 library(ROCR)
 library(glmnet)
 library(car)
+library(class)
+library(psych)
 ```
 
 # Background
@@ -337,7 +339,6 @@ There seem to be a correlation between readmittance and race.
 
 ```{r}
 # readmission within 30 days
-data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
 
 readmission_vs_race <- table(data$outcome,data$race)
 
@@ -419,8 +420,6 @@ par(mar=c(10,5,1,1))
 giniplot <- barplot(t(varimp1[-2]/sum(varimp1[-2])), las=2, cex.names=1,
                     main="Gini Impurity Index Plot")
 
-giniplot <- barplot(t(varimp1[-2]/sum(varimp1[-2])), las=2, cex.names=1,
-                    main="Gini Impurity Index Plot")
 ```
 
 Sampling Tuning Test
@@ -472,6 +471,246 @@ auc.val1 <- auc.val1@y.values
 plot(roc.perf1)
 abline(a=0, b= 1)
 text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
+
+```
+
+### K-NN
+
+```{r}
+# do lots of 'dummy' transforms for knn because it cannot take factor vars
+train2 <- train
+test2 <- test
+# training data
+gender <- as.data.frame(dummy.code(train2$gender))
+race <- as.data.frame(dummy.code(train2$race))
+admission_type_id <- as.data.frame(dummy.code(train2$admission_type_id))
+names(admission_type_id) <- paste('admission_type_id.', names(admission_type_id), sep = '')
+discharge_disposition_id <- as.data.frame(dummy.code(train2$discharge_disposition_id))
+names(discharge_disposition_id) <- paste('discharge_disposition_id.', names(discharge_disposition_id), sep = '')
+admission_source_id <- as.data.frame(dummy.code(train2$admission_source_id))
+names(admission_source_id) <- paste('admission_source_id.', names(admission_source_id), sep = '')
+diag_1 <- as.data.frame(dummy.code(train2$diag_1))
+names(diag_1) <- paste('diag_1.', names(diag_1), sep = '')
+diag_2 <- as.data.frame(dummy.code(train2$diag_2))
+names(diag_2) <- paste('diag_2.', names(diag_2), sep = '')
+diag_3 <- as.data.frame(dummy.code(train2$diag_3))
+names(diag_3) <- paste('diag_3.', names(diag_3), sep = '')
+max_glu_serum <- as.data.frame(dummy.code(train2$max_glu_serum))
+names(max_glu_serum) <- paste('max_glu_serum.', names(max_glu_serum), sep = '')
+A1Cresult <- as.data.frame(dummy.code(train2$A1Cresult))
+names(A1Cresult) <- paste('A1Cresult.', names(A1Cresult), sep = '')
+metformin <- as.data.frame(dummy.code(train2$metformin))
+names(metformin) <- paste('metformin.', names(metformin), sep = '')
+repaglinide <- as.data.frame(dummy.code(train2$repaglinide))
+names(repaglinide) <- paste('repaglinide.', names(repaglinide), sep = '')
+nateglinide <- as.data.frame(dummy.code(train2$nateglinide))
+names(nateglinide) <- paste('nateglinide.', names(nateglinide), sep = '')
+chlorpropamide <- as.data.frame(dummy.code(train2$chlorpropamide))
+names(chlorpropamide) <- paste('chlorpropamide.', names(chlorpropamide), sep = '')
+glimepiride <- as.data.frame(dummy.code(train2$glimepiride))
+names(glimepiride) <- paste('glimepiride.', names(glimepiride), sep = '')
+acetohexamide <- as.data.frame(dummy.code(train2$acetohexamide))
+names(acetohexamide) <- paste('acetohexamide.', names(acetohexamide), sep = '')
+glipizide<- as.data.frame(dummy.code(train2$glipizide))
+names(glipizide) <- paste('glipizide.', names(glipizide), sep = '')
+glyburide <- as.data.frame(dummy.code(train2$glyburide))   
+names(glyburide) <- paste('glyburide.', names(glyburide), sep = '')
+tolbutamide <- as.data.frame(dummy.code(train2$tolbutamide))
+names(tolbutamide) <- paste('tolbutamide.', names(tolbutamide), sep = '')
+pioglitazone <- as.data.frame(dummy.code(train2$pioglitazone))
+names(pioglitazone) <- paste('pioglitazone.', names(pioglitazone), sep = '')
+rosiglitazone <- as.data.frame(dummy.code(train2$rosiglitazone))
+names(rosiglitazone) <- paste('rosiglitazone.', names(rosiglitazone), sep = '')
+acarbose <- as.data.frame(dummy.code(train2$acarbose))
+names(acarbose) <- paste('acarbose.', names(acarbose), sep = '')
+miglitol <- as.data.frame(dummy.code(train2$miglitol))
+names(miglitol) <- paste('miglitol.', names(miglitol), sep = '')
+troglitazone <- as.data.frame(dummy.code(train2$troglitazone))
+names(troglitazone) <- paste('troglitazone.', names(troglitazone), sep = '')
+tolazamide <- as.data.frame(dummy.code(train2$tolazamide))
+names(tolazamide) <- paste('tolazamide.', names(tolazamide), sep = '')
+insulin <- as.data.frame(dummy.code(train2$insulin))
+names(insulin) <- paste('insulin.', names(insulin), sep = '')
+glyburide.metformin <- as.data.frame(dummy.code(train2$glyburide.metformin))
+names(glyburide.metformin) <- paste('glyburide.metformin.', names(glyburide.metformin), sep = '')
+glipizide.metformin <- as.data.frame(dummy.code(train2$glipizide.metformin))
+names(glipizide.metformin) <- paste('glipizide.metformin.', names(glipizide.metformin), sep = '')
+metformin.rosiglitazone <- as.data.frame(dummy.code(train2$metformin.rosiglitazone))
+names(metformin.rosiglitazone) <- paste('metformin.rosiglitazone.', names(metformin.rosiglitazone), sep = '')
+glimepiride.pioglitazone <- as.data.frame(dummy.code(train2$glimepiride.pioglitazone))
+names(glimepiride.pioglitazone) <- paste('glimepiride.pioglitazone.', names(glimepiride.pioglitazone), sep = '')
+metformin.pioglitazone <- as.data.frame(dummy.code(train2$metformin.pioglitazone))
+names(metformin.pioglitazone) <- paste('metformin.pioglitazone', names(metformin.pioglitazone), sep = '')
+change <- as.data.frame(dummy.code(train2$change))
+names(change) <- paste('change.', names(change), sep = '')
+ageGrp <- as.data.frame(dummy.code(train2$ageGrp))
+names(ageGrp) <- paste('ageGrp.', names(ageGrp), sep = '')
+diabetesMed <- as.data.frame(dummy.code(train2$diabetesMed))
+names(diabetesMed) <- paste('diabetesMed.', names(diabetesMed), sep = '')
+
+train2 <- cbind(train2, gender, race, admission_type_id, discharge_disposition_id, admission_source_id, diag_1, diag_2, diag_3,
+                max_glu_serum, A1Cresult, metformin, repaglinide, nateglinide, chlorpropamide, glimepiride, acetohexamide,
+                glipizide, glyburide, tolbutamide, pioglitazone, rosiglitazone, acarbose, miglitol, troglitazone, tolazamide,
+                insulin, glyburide.metformin, glipizide.metformin, metformin.rosiglitazone, glimepiride.pioglitazone,
+                metformin.pioglitazone, change, ageGrp, diabetesMed)
+
+train2 <- train2 %>% 
+  select(-one_of(c('gender', 'race', 'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
+                   'diag_1', 'diag_2', 'diag_3',
+                'max_glu_serum', 'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
+                'glimepiride', 'acetohexamide',
+                'glipizide', 'glyburide', 'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
+                'miglitol', 'troglitazone', 'tolazamide',
+                'insulin', 'glyburide.metformin', 'glipizide.metformin', 'metformin.rosiglitazone',
+                'glimepiride.pioglitazone', 'metformin.pioglitazone', 'change',
+                'ageGrp', 'diabetesMed', 'outcome')))
+
+# testing data
+gender <- as.data.frame(dummy.code(test2$gender))
+race <- as.data.frame(dummy.code(test2$race))
+admission_type_id <- as.data.frame(dummy.code(test2$admission_type_id))
+names(admission_type_id) <- paste('admission_type_id.', names(admission_type_id), sep = '')
+discharge_disposition_id <- as.data.frame(dummy.code(test2$discharge_disposition_id))
+names(discharge_disposition_id) <- paste('discharge_disposition_id.', names(discharge_disposition_id), sep = '')
+admission_source_id <- as.data.frame(dummy.code(test2$admission_source_id))
+names(admission_source_id) <- paste('admission_source_id.', names(admission_source_id), sep = '')
+diag_1 <- as.data.frame(dummy.code(test2$diag_1))
+names(diag_1) <- paste('diag_1.', names(diag_1), sep = '')
+diag_2 <- as.data.frame(dummy.code(test2$diag_2))
+names(diag_2) <- paste('diag_2.', names(diag_2), sep = '')
+diag_3 <- as.data.frame(dummy.code(test2$diag_3))
+names(diag_3) <- paste('diag_3.', names(diag_3), sep = '')
+max_glu_serum <- as.data.frame(dummy.code(test2$max_glu_serum))
+names(max_glu_serum) <- paste('max_glu_serum.', names(max_glu_serum), sep = '')
+A1Cresult <- as.data.frame(dummy.code(test2$A1Cresult))
+names(A1Cresult) <- paste('A1Cresult.', names(A1Cresult), sep = '')
+metformin <- as.data.frame(dummy.code(test2$metformin))
+names(metformin) <- paste('metformin.', names(metformin), sep = '')
+repaglinide <- as.data.frame(dummy.code(test2$repaglinide))
+names(repaglinide) <- paste('repaglinide.', names(repaglinide), sep = '')
+nateglinide <- as.data.frame(dummy.code(test2$nateglinide))
+names(nateglinide) <- paste('nateglinide.', names(nateglinide), sep = '')
+chlorpropamide <- as.data.frame(dummy.code(test2$chlorpropamide))
+names(chlorpropamide) <- paste('chlorpropamide.', names(chlorpropamide), sep = '')
+glimepiride <- as.data.frame(dummy.code(test2$glimepiride))
+names(glimepiride) <- paste('glimepiride.', names(glimepiride), sep = '')
+acetohexamide <- as.data.frame(dummy.code(test2$acetohexamide))
+names(acetohexamide) <- paste('acetohexamide.', names(acetohexamide), sep = '')
+glipizide<- as.data.frame(dummy.code(test2$glipizide))
+names(glipizide) <- paste('glipizide.', names(glipizide), sep = '')
+glyburide <- as.data.frame(dummy.code(test2$glyburide))   
+names(glyburide) <- paste('glyburide.', names(glyburide), sep = '')
+tolbutamide <- as.data.frame(dummy.code(test2$tolbutamide))
+names(tolbutamide) <- paste('tolbutamide.', names(tolbutamide), sep = '')
+pioglitazone <- as.data.frame(dummy.code(test2$pioglitazone))
+names(pioglitazone) <- paste('pioglitazone.', names(pioglitazone), sep = '')
+rosiglitazone <- as.data.frame(dummy.code(test2$rosiglitazone))
+names(rosiglitazone) <- paste('rosiglitazone.', names(rosiglitazone), sep = '')
+acarbose <- as.data.frame(dummy.code(test2$acarbose))
+names(acarbose) <- paste('acarbose.', names(acarbose), sep = '')
+miglitol <- as.data.frame(dummy.code(test2$miglitol))
+names(miglitol) <- paste('miglitol.', names(miglitol), sep = '')
+troglitazone <- as.data.frame(dummy.code(test2$troglitazone))
+names(troglitazone) <- paste('troglitazone.', names(troglitazone), sep = '')
+tolazamide <- as.data.frame(dummy.code(test2$tolazamide))
+names(tolazamide) <- paste('tolazamide.', names(tolazamide), sep = '')
+insulin <- as.data.frame(dummy.code(test2$insulin))
+names(insulin) <- paste('insulin.', names(insulin), sep = '')
+glyburide.metformin <- as.data.frame(dummy.code(test2$glyburide.metformin))
+names(glyburide.metformin) <- paste('glyburide.metformin.', names(glyburide.metformin), sep = '')
+glipizide.metformin <- as.data.frame(dummy.code(test2$glipizide.metformin))
+names(glipizide.metformin) <- paste('glipizide.metformin.', names(glipizide.metformin), sep = '')
+metformin.rosiglitazone <- as.data.frame(dummy.code(test2$metformin.rosiglitazone))
+names(metformin.rosiglitazone) <- paste('metformin.rosiglitazone.', names(metformin.rosiglitazone), sep = '')
+glimepiride.pioglitazone <- as.data.frame(dummy.code(test2$glimepiride.pioglitazone))
+names(glimepiride.pioglitazone) <- paste('glimepiride.pioglitazone.', names(glimepiride.pioglitazone), sep = '')
+metformin.pioglitazone <- as.data.frame(dummy.code(test2$metformin.pioglitazone))
+names(metformin.pioglitazone) <- paste('metformin.pioglitazone', names(metformin.pioglitazone), sep = '')
+change <- as.data.frame(dummy.code(test2$change))
+names(change) <- paste('change.', names(change), sep = '')
+ageGrp <- as.data.frame(dummy.code(test2$ageGrp))
+names(ageGrp) <- paste('ageGrp.', names(ageGrp), sep = '')
+diabetesMed <- as.data.frame(dummy.code(test2$diabetesMed))
+names(diabetesMed) <- paste('diabetesMed.', names(diabetesMed), sep = '')
+
+test2 <- cbind(test2, gender, race, admission_type_id, discharge_disposition_id, admission_source_id, diag_1, diag_2, diag_3,
+                max_glu_serum, A1Cresult, metformin, repaglinide, nateglinide, chlorpropamide, glimepiride, acetohexamide,
+                glipizide, glyburide, tolbutamide, pioglitazone, rosiglitazone, acarbose, miglitol, troglitazone, tolazamide,
+                insulin, glyburide.metformin, glipizide.metformin, metformin.rosiglitazone, glimepiride.pioglitazone,
+                metformin.pioglitazone, change, ageGrp, diabetesMed)
+
+test2 <- test2 %>% 
+  select(-one_of(c('gender', 'race', 'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
+                   'diag_1', 'diag_2', 'diag_3',
+                'max_glu_serum', 'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
+                'glimepiride', 'acetohexamide',
+                'glipizide', 'glyburide', 'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
+                'miglitol', 'troglitazone', 'tolazamide',
+                'insulin', 'glyburide.metformin', 'glipizide.metformin', 'metformin.rosiglitazone',
+                'glimepiride.pioglitazone', 'metformin.pioglitazone', 'change',
+                'ageGrp', 'diabetesMed')))
+
+
+
+# And train!
+
+# make a large tunning grid
+knn.tuningGrid <- expand.grid(k = seq(1:30))
+
+train.control <-trainControl(method = "cv",
+                             number = 2,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             savePredictions = TRUE
+                             )
+
+model.cv <-train(y = train$outcome,
+                 x = train2,
+                 method = 'knn',
+                 trControl = train.control,
+                 tuneGrid = knn.tuningGrid
+                 )
+
+model.cv
+
+# plot metrics by k tuning grid
+knn.metrics <-data.frame(
+  'k' = model.cv$results$k,
+  'ROC' = model.cv$results$ROC,
+  'Sens' = model.cv$results$Sens,
+  'Spec' = model.cv$results$Spec)
+
+p1 <- knn.metrics %>%
+  ggplot(aes(x = k, y = ROC)) +
+  geom_point() +
+  geom_smooth(method = 'loess')
+
+p2 <- knn.metrics %>%
+  ggplot(aes(x = k, y = Sens)) +
+  geom_point() +
+  geom_smooth(method = 'loess')
+
+p3 <- knn.metrics %>%
+  ggplot(aes(x = k, y = Spec)) +
+  geom_point() +
+  geom_smooth(method = 'loess')
+
+grid.arrange(p1, p2, p3, ncol = 3,
+             top = 'Metrics by k in Tuning Grid')
+
+preds <- predict(model.cv, test2)
+
+confusionMatrix(preds, test2$outcome)
+
+#ROC curves
+pred1 <- prediction(as.numeric(preds), test.y)
+roc.perf1 = performance(pred1, measure = "tpr", x.measure = "fpr")
+auc.val1 <- performance(pred1, measure = "auc")
+auc.val1 <- auc.val1@y.values
+plot(roc.perf1)
+abline(a=0, b= 1)
+text(x = .40, y = .6, paste("AUC = ", round(auc.val1[[1]], 3), sep = ""))
+
 ```
 
 
