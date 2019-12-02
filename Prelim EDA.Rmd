@@ -427,11 +427,61 @@ Sampling Tuning Test
 bestmtry <- tuneRF(train.x, train.y, stepFactor=.5, improve=1e-5, ntree=500)
 print(bestmtry)
 ```
-
-### Logistic Example
+### Simple Logistic Example
 ```{r}
-#glmnet requires a matrix 
-train.x <- data.matrix(train.x)
+#glmnet requires a matrix
+f <- as.formula(outcome ~ .)
+train.x <- model.matrix(f, train)
+#train.x <- data.matrix(train.x)
+cvfit <- cv.glmnet(train.x,train.y, family = "binomial", type.measure = "class", nlambda = 1000)
+plot(cvfit)
+coef(cvfit, s = "lambda.min")
+
+#Get training set predictions...We know they are biased but lets create ROC's.
+#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
+fit.pred <- predict(cvfit, newx = train.x, type = "response")
+
+#Compare the prediction to the real outcome
+head(fit.pred)
+head(train.y)
+
+#Create ROC curves
+pred <- prediction(fit.pred[,1], train.y)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+
+#Plot ROC
+plot(roc.perf)
+abline(a=0, b= 1) #Ref line indicating poor performance
+text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+```
+
+Run model against test set, using simple fit, no interaction
+```{r}
+#Run model from training set on valid set I
+f <- as.formula(outcome ~ .)
+test.x <- model.matrix(f, test)
+#test.x <- data.matrix(test.x)
+fit.pred1 <- predict(cvfit, newx = test.x, type = "response")
+
+#ROC curves
+pred1 <- prediction(fit.pred1[,1], test.y)
+roc.perf1 = performance(pred1, measure = "tpr", x.measure = "fpr")
+auc.val1 <- performance(pred1, measure = "auc")
+auc.val1 <- auc.val1@y.values
+plot(roc.perf1)
+abline(a=0, b= 1)
+text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
+```
+
+
+### Complex Logistic Example, 1 interaction
+```{r}
+#glmnet requires a matrix
+f <- as.formula(outcome ~ . + diabetesMed*diag_1)
+train.x <- model.matrix(f, train)
+#train.x <- data.matrix(train.x)
 cvfit <- cv.glmnet(train.x,train.y, family = "binomial", type.measure = "class", nlambda = 1000)
 plot(cvfit)
 coef(cvfit, s = "lambda.min")
@@ -457,10 +507,12 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
 
-Run model against test set
+Run model against test set, with interaction
 ```{r}
 #Run model from training set on valid set I
-test.x <- data.matrix(test.x)
+f <- as.formula(outcome ~ . + change*diag_1)
+test.x <- model.matrix(f, test)
+#test.x <- data.matrix(test.x)
 fit.pred1 <- predict(cvfit, newx = test.x, type = "response")
 
 #ROC curves
@@ -716,15 +768,15 @@ text(x = .40, y = .6, paste("AUC = ", round(auc.val1[[1]], 3), sep = ""))
 
 ### HeatMap
 ```{r}
-ggplot(data = data,aes(x = data$race, y = data$age)) +labs(title="(Race & Age) Vs Readmission", y="Patient Age Group", x="Race")+geom_tile(aes(fill = data$readmitted))
+ggplot(data = data,aes(x = data$race, y = data$ageGrp)) +labs(title="(Race & Age) Vs Readmission", y="Patient Age Group", x="Race")+geom_tile(aes(fill = data$outcome))
 
-ggplot(data = data, aes(x = data$time_in_hospital, y = data$age)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = data$readmitted))
+ggplot(data = data, aes(x = data$time_in_hospital, y = data$ageGrp)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = data$outcome))
 
-ggplot(data = data, aes(x = data$age, y = data$diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = data$readmitted))
+ggplot(data = data, aes(x = data$ageGrp, y = data$diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = data$outcome))
 
-ggplot(data = data, aes(x = data$age, y = data$diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = data$readmitted))
+ggplot(data = data, aes(x = data$ageGrp, y = data$diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = data$outcome))
 
-ggplot(data = data, aes(x = data$age, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = data$readmitted))
+ggplot(data = data, aes(x = data$ageGrp, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = data$outcome))
 
 ```
 
