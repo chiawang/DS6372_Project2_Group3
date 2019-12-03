@@ -335,15 +335,15 @@ p3 <- data %>%
 grid.arrange(p1, p2, p3, ncol = 2)
 ```
 
-#### Race vs. Readmission
-There seem to be a correlation between readmittance and race.
+#### Heatmap
+correlation between each factors.
 
 ```{r}
-# readmission within 30 days
+ggcorr(data %>% select(-outcome, -ageGrp, -admission_source_id, -discharge_disposition_id, -admission_type_id, -race, -gender, -diag_1, -diag_2, -diag_3, -max_glu_serum, -A1Cresult, -metformin, -repaglinide, -nateglinide, -chlorpropamide, -glimepiride, -acetohexamide, -glipizide, -glyburide, -tolbutamide, -pioglitazone, -rosiglitazone, -acarbose, -miglitol, -troglitazone, -tolazamide,-insulin, -glyburide.metformin, -glipizide.metformin, -glimepiride.pioglitazone, -metformin.rosiglitazone, -metformin.pioglitazone, -change, -diabetesMed), name = "corr", label = TRUE, hjust = 1, label_size = 2, angle = -45, size = 3)
 
-#readmission_vs_race <- table(data$outcome,data$race)
 
-#barplot(readmission_vs_race,col=c("#009E73","#D55E00"), legend = rownames(readmission_vs_race), xlab = "Race", #ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
+
+
 ```
 
 ## Modeling
@@ -948,20 +948,6 @@ text(x = .40, y = .6, paste("AUC = ", round(auc.val1[[1]], 3), sep = ""))
 
 ```
 
-
-### HeatMap
-```{r}
-ggplot(data = data,aes(x = race, y = ageGrp)) +labs(title="(Race & Age) Vs Readmission", y="Age Group", x="Race")+geom_tile(aes(fill = outcome))
-
-ggplot(data = data, aes(x = time_in_hospital, y = ageGrp)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = outcome))
-
-ggplot(data = data, aes(x = ageGrp, y = diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = outcome))
-
-ggplot(data = data, aes(x = ageGrp, y = diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = outcome))
-
-ggplot(data = data, aes(x = data$ageGrp, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = outcome))
-
-```
 
 
 
