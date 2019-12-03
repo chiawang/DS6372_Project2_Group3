@@ -18,10 +18,6 @@ library(caret)
 library(randomForest)
 library(ROCR)
 library(glmnet)
-library(car)
-library(class)
-library(psych)
-library(tree)
 ```
 
 # Background
@@ -54,7 +50,7 @@ https://www.hindawi.com/journals/bmri/2014/781670/tab1/
 
 ## Import Data
 ```{r import}
-data <- read.csv("./diabetic_data.csv")
+data <- read.csv("diabetic_data.csv")
 head(data)
 ```
 
@@ -340,10 +336,11 @@ There seem to be a correlation between readmittance and race.
 
 ```{r}
 # readmission within 30 days
+#data$outcome <- factor(ifelse(data$readmitted == "<30","Yes","No"))
 
-readmission_vs_race <- table(data$outcome,data$race)
+#readmission_vs_race <- table(data$outcome,data$race)
 
-barplot(readmission_vs_race,col=c("#009E73","#D55E00"), legend = rownames(readmission_vs_race), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
+#barplot(readmission_vs_race,col=c("#009E73","#D55E00"), legend = rownames(readmission_vs_race), xlab = "Race", ylab="Diabetic Patient Number", main= "Re-admission within 30 days vs Race")
 ```
 
 ## Modeling
@@ -353,9 +350,7 @@ Let's try some different modeling options. Since we have an imbalanced data set,
 ### Down Sample
 
 ```{r}
-set.seed(9560)
-
-trainIdx <- createDataPartition(data$outcome, p =.75, list = F, times = 1)
+trainIdx <- createDataPartition(data$outcome, p =0.75, list = F, times = 1)
 train <- data[trainIdx, ]
 test <- data[-trainIdx, ]
 
@@ -387,7 +382,6 @@ abline(a=0, b= 1)
 text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
-
 Test Set
 ```{r}
 pred.val1<-predict(train.rf,newdata=test,type="prob")
@@ -400,29 +394,8 @@ abline(a=0, b=1)
 text(x = .4, y = .6,paste("AUC = ", round(auc.test[[1]],3), sep = ""))
 ```
 
-**Gini importances plot**
-
-Gini has to do with the cross-entroy of the trees from a split. Decreases in Gini index are desirable.
-
-https://towardsdatascience.com/seeing-the-random-forest-from-the-decision-trees-an-intuitive-explanation-of-random-forest-beaa2d6a0d80
-
-ISL p.312
-
-https://stats.stackexchange.com/questions/92419/relative-importance-of-a-set-of-predictors-in-a-random-forests-classification-in
-
 ```{r}
 importance(train.rf)
-
-rf.feature.importance <- data.frame(importance(train.rf))
-
-varimp1 <- rf.feature.importance[order(rf.feature.importance$MeanDecreaseGini,decreasing = T),]
-
-varimp1
-
-par(mar=c(10,5,1,1)) 
-giniplot <- barplot(t(varimp1[-2]/sum(varimp1[-2])), las=2, cex.names=1,
-                    main="Gini Impurity Index Plot")
-
 ```
 
 Sampling Tuning Test
@@ -431,17 +404,13 @@ bestmtry <- tuneRF(train.x, train.y, stepFactor=.5, improve=1e-5, ntree=500)
 print(bestmtry)
 ```
 
-### Simple Logistic Example
+### Logistic Example
 ```{r}
-#glmnet requires a matrix
-set.seed(9560)
-f <- as.formula(outcome ~ .)
-train.x <- model.matrix(f, train)
-#train.x <- data.matrix(train.x)
+#glmnet requires a matrix 
+train.x <- data.matrix(train.x)
 cvfit <- cv.glmnet(train.x,train.y, family = "binomial", type.measure = "class", nlambda = 1000)
 plot(cvfit)
 coef(cvfit, s = "lambda.min")
-#rownames(coef(cvfit, s = 'lambda.min'))[coef(cvfit, s = 'lambda.min')[,1]!=0]
 
 #Get training set predictions...We know they are biased but lets create ROC's.
 #These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
@@ -463,503 +432,34 @@ abline(a=0, b= 1) #Ref line indicating poor performance
 text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
-Take the coefficients from above, and create a glm model using them since glmnet/lasso will bias the coefficients towards zero. Note, each time I restart R, I get a different set of coefficients for the same seed value??
+Run model against test set
 ```{r}
-f <- as.formula(outcome ~ discharge_disposition_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + number_diagnoses + metformin + diabetesMed + ageGrp)
-
-#f <- as.formula(outcome ~ discharge_disposition_id + number_inpatient + diag_1)
-
-glm.simple <- glm(formula = f, family = "binomial", data = train)
-coef(glm.simple)
-
-#Get training set predictions...We know they are biased but lets create ROC's.
-#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
-fit.pred <- predict(glm.simple, newx = train.x, type = "response")
-
-#Compare the prediction to the real outcome
-head(fit.pred)
-head(train.y)
-
-#Create ROC curves
-pred <- prediction(fit.pred, train.y)
-roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(pred, measure = "auc")
-auc.train <- auc.train@y.values
-
-#Plot ROC
-plot(roc.perf)
-abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
-```
-
-Stole the function from stack overflow. I think in general this will always be an issue. Missing factor levels between test and train sets.
-https://stackoverflow.com/questions/4285214/predict-lm-with-an-unknown-factor-level-in-test-data
-```{r}
-remove_missing_levels <- function(fit, test_data) {
-
-  # https://stackoverflow.com/a/39495480/4185785
-
-  # drop empty factor levels in test data
-  test_data %>%
-    droplevels() %>%
-    as.data.frame() -> test_data
-
-  # 'fit' object structure of 'lm' and 'glmmPQL' is different so we need to
-  # account for it
-  if (any(class(fit) == "glmmPQL")) {
-    # Obtain factor predictors in the model and their levels
-    factors <- (gsub("[-^0-9]|as.factor|\\(|\\)", "",
-                     names(unlist(fit$contrasts))))
-    # do nothing if no factors are present
-    if (length(factors) == 0) {
-      return(test_data)
-    }
-
-    map(fit$contrasts, function(x) names(unmatrix(x))) %>%
-      unlist() -> factor_levels
-    factor_levels %>% str_split(":", simplify = TRUE) %>%
-      extract(, 1) -> factor_levels
-
-    model_factors <- as.data.frame(cbind(factors, factor_levels))
-  } else {
-    # Obtain factor predictors in the model and their levels
-    factors <- (gsub("[-^0-9]|as.factor|\\(|\\)", "",
-                     names(unlist(fit$xlevels))))
-    # do nothing if no factors are present
-    if (length(factors) == 0) {
-      return(test_data)
-    }
-
-    factor_levels <- unname(unlist(fit$xlevels))
-    model_factors <- as.data.frame(cbind(factors, factor_levels))
-  }
-
-  # Select column names in test data that are factor predictors in
-  # trained model
-
-  predictors <- names(test_data[names(test_data) %in% factors])
-
-  # For each factor predictor in your data, if the level is not in the model,
-  # set the value to NA
-
-  for (i in 1:length(predictors)) {
-    found <- test_data[, predictors[i]] %in% model_factors[
-      model_factors$factors == predictors[i], ]$factor_levels
-    if (any(!found)) {
-      # track which variable
-      var <- predictors[i]
-      # set to NA
-      test_data[!found, predictors[i]] <- NA
-      # drop empty factor levels in test data
-      test_data %>%
-        droplevels() -> test_data
-      # issue warning to console
-      message(sprintf(paste0("Setting missing levels in '%s', only present",
-                             " in test data but missing in train data,",
-                             " to 'NA'."),
-                      var))
-    }
-  }
-  return(test_data)
-}
-```
-
-
-Run model against test set, using simple fit, no interaction. Use the model created above. Run against test data set and remove missing levels, otherwise, predict will fail if there are levels in test that weren't encountered in train.
-```{r}
-#Run model from training set on test set
-set.seed(9560)
-fit.pred1 <- predict(glm.simple, newdata = remove_missing_levels(fit=glm.simple, test_data = test), type = "response")
+#Run model from training set on valid set I
+test.x <- data.matrix(test.x)
+fit.pred1 <- predict(cvfit, newx = test.x, type = "response")
 
 #ROC curves
-pred1 <- prediction(fit.pred1, test.y)
+pred1 <- prediction(fit.pred1[,1], test.y)
 roc.perf1 = performance(pred1, measure = "tpr", x.measure = "fpr")
 auc.val1 <- performance(pred1, measure = "auc")
 auc.val1 <- auc.val1@y.values
 plot(roc.perf1)
 abline(a=0, b= 1)
 text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
-```
-
-### Desiscion Tree
-We'll need to use a more balanced data set for a decsion tree. Running against the original data set returns nothing. So used the train set created by down sampling.
-```{r}
-par(mfrow=c(1,1))
-thetree <- tree(outcome ~ ., data = train, mincut=5)
-summary(thetree)
-plot(thetree)
-text(thetree,pretty=0)
-```
-
-Let's create a glm model using just the predictors above from decision tree, and see how it compares.
-```{r}
-f <- as.formula(outcome ~ discharge_disposition_id + number_inpatient)
-
-glm.tree <- glm(formula = f, family = "binomial", data = train)
-coef(glm.tree)
-
-#Get training set predictions...We know they are biased but lets create ROC's.
-#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
-fit.pred <- predict(glm.tree, newx = train.x, type = "response")
-
-#Compare the prediction to the real outcome
-head(fit.pred)
-head(train.y)
-
-#Create ROC curves
-pred <- prediction(fit.pred, train.y)
-roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(pred, measure = "auc")
-auc.train <- auc.train@y.values
-
-#Plot ROC
-plot(roc.perf)
-abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
-```
-
-Now apply it against test set
-```{r}
-#Run model from descision tree predictors
-set.seed(9560)
-fit.pred.tree <- predict(glm.tree, newdata = remove_missing_levels(fit=glm.tree, test_data = test), type = "response")
-
-#ROC curves
-pred.tree <- prediction(fit.pred.tree, test.y)
-roc.perf.tree = performance(pred.tree, measure = "tpr", x.measure = "fpr")
-auc.val.tree <- performance(pred.tree, measure = "auc")
-auc.val.tree <- auc.val.tree@y.values
-plot(roc.perf.tree)
-abline(a=0, b= 1)
-text(x = .40, y = .6,paste("AUC = ", round(auc.val.tree[[1]],3), sep = ""))
-```
-
-### Complex Logistic Example, Let's include sqrt of number_inpatient
-```{r}
-#glmnet requires a matrix
-set.seed(9560)
-f <- as.formula(outcome ~ . + I(number_inpatient^.5))
-train.x <- model.matrix(f, train)
-cvfit <- cv.glmnet(train.x,train.y, family = "binomial", type.measure = "class", nlambda = 1000)
-plot(cvfit)
-coef(cvfit, s = "lambda.min")
-#rownames(coef(cvfit, s = 'lambda.min'))[coef(cvfit, s = 'lambda.min')[,1]!=0]
-
-#Get training set predictions...We know they are biased but lets create ROC's.
-#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
-fit.pred <- predict(cvfit, newx = train.x, type = "response")
-
-#Compare the prediction to the real outcome
-head(fit.pred)
-head(train.y)
-
-#Create ROC curves
-pred <- prediction(fit.pred[,1], train.y)
-roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(pred, measure = "auc")
-auc.train <- auc.train@y.values
-
-#Plot ROC
-plot(roc.perf)
-abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
-```
-
-Now use coefficients determined above, create a new formula and create complex model
-```{r}
-f <- as.formula(outcome ~ race + admission_type_id + discharge_disposition_id + admission_source_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + diag_3 + number_diagnoses + A1Cresult + metformin + glimepiride + acarbose + diabetesMed + ageGrp + I(number_inpatient^.5))
-
-glm.complex <- glm(formula = f, family = "binomial", data = train)
-coef(glm.complex)
-
-#Get training set predictions...We know they are biased but lets create ROC's.
-#These are predicted probabilities from logistic model  exp(b)/(1+exp(b))
-fit.pred <- predict(glm.complex, newx = train.x, type = "response")
-
-#Compare the prediction to the real outcome
-head(fit.pred)
-head(train.y)
-
-#Create ROC curves
-pred <- prediction(fit.pred, train.y)
-roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(pred, measure = "auc")
-auc.train <- auc.train@y.values
-
-#Plot ROC
-plot(roc.perf)
-abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
-```
-
-```{r}
-#Run model from complex train on test
-set.seed(9560)
-fit.pred.complex <- predict(glm.complex, newdata = remove_missing_levels(fit=glm.complex, test_data = test), type = "response")
-
-#ROC curves
-pred1 <- prediction(fit.pred.complex, test.y)
-roc.perf.complex = performance(pred1, measure = "tpr", x.measure = "fpr")
-auc.val.complex <- performance(pred1, measure = "auc")
-auc.val.complex <- auc.val.complex@y.values
-plot(roc.perf.complex)
-abline(a=0, b= 1)
-text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
-```
-
-Notice above we got a better training score with the complext model, we ended up getting a lower score when applying to the test set.
-
-### K-NN
-
-```{r}
-# do lots of 'dummy' transforms for knn because it cannot take factor vars
-train2 <- train
-test2 <- test
-# training data
-gender <- as.data.frame(dummy.code(train2$gender))
-race <- as.data.frame(dummy.code(train2$race))
-admission_type_id <- as.data.frame(dummy.code(train2$admission_type_id))
-names(admission_type_id) <- paste('admission_type_id.', names(admission_type_id), sep = '')
-discharge_disposition_id <- as.data.frame(dummy.code(train2$discharge_disposition_id))
-names(discharge_disposition_id) <- paste('discharge_disposition_id.', names(discharge_disposition_id), sep = '')
-admission_source_id <- as.data.frame(dummy.code(train2$admission_source_id))
-names(admission_source_id) <- paste('admission_source_id.', names(admission_source_id), sep = '')
-diag_1 <- as.data.frame(dummy.code(train2$diag_1))
-names(diag_1) <- paste('diag_1.', names(diag_1), sep = '')
-diag_2 <- as.data.frame(dummy.code(train2$diag_2))
-names(diag_2) <- paste('diag_2.', names(diag_2), sep = '')
-diag_3 <- as.data.frame(dummy.code(train2$diag_3))
-names(diag_3) <- paste('diag_3.', names(diag_3), sep = '')
-max_glu_serum <- as.data.frame(dummy.code(train2$max_glu_serum))
-names(max_glu_serum) <- paste('max_glu_serum.', names(max_glu_serum), sep = '')
-A1Cresult <- as.data.frame(dummy.code(train2$A1Cresult))
-names(A1Cresult) <- paste('A1Cresult.', names(A1Cresult), sep = '')
-metformin <- as.data.frame(dummy.code(train2$metformin))
-names(metformin) <- paste('metformin.', names(metformin), sep = '')
-repaglinide <- as.data.frame(dummy.code(train2$repaglinide))
-names(repaglinide) <- paste('repaglinide.', names(repaglinide), sep = '')
-nateglinide <- as.data.frame(dummy.code(train2$nateglinide))
-names(nateglinide) <- paste('nateglinide.', names(nateglinide), sep = '')
-chlorpropamide <- as.data.frame(dummy.code(train2$chlorpropamide))
-names(chlorpropamide) <- paste('chlorpropamide.', names(chlorpropamide), sep = '')
-glimepiride <- as.data.frame(dummy.code(train2$glimepiride))
-names(glimepiride) <- paste('glimepiride.', names(glimepiride), sep = '')
-acetohexamide <- as.data.frame(dummy.code(train2$acetohexamide))
-names(acetohexamide) <- paste('acetohexamide.', names(acetohexamide), sep = '')
-glipizide<- as.data.frame(dummy.code(train2$glipizide))
-names(glipizide) <- paste('glipizide.', names(glipizide), sep = '')
-glyburide <- as.data.frame(dummy.code(train2$glyburide))   
-names(glyburide) <- paste('glyburide.', names(glyburide), sep = '')
-tolbutamide <- as.data.frame(dummy.code(train2$tolbutamide))
-names(tolbutamide) <- paste('tolbutamide.', names(tolbutamide), sep = '')
-pioglitazone <- as.data.frame(dummy.code(train2$pioglitazone))
-names(pioglitazone) <- paste('pioglitazone.', names(pioglitazone), sep = '')
-rosiglitazone <- as.data.frame(dummy.code(train2$rosiglitazone))
-names(rosiglitazone) <- paste('rosiglitazone.', names(rosiglitazone), sep = '')
-acarbose <- as.data.frame(dummy.code(train2$acarbose))
-names(acarbose) <- paste('acarbose.', names(acarbose), sep = '')
-miglitol <- as.data.frame(dummy.code(train2$miglitol))
-names(miglitol) <- paste('miglitol.', names(miglitol), sep = '')
-troglitazone <- as.data.frame(dummy.code(train2$troglitazone))
-names(troglitazone) <- paste('troglitazone.', names(troglitazone), sep = '')
-tolazamide <- as.data.frame(dummy.code(train2$tolazamide))
-names(tolazamide) <- paste('tolazamide.', names(tolazamide), sep = '')
-insulin <- as.data.frame(dummy.code(train2$insulin))
-names(insulin) <- paste('insulin.', names(insulin), sep = '')
-glyburide.metformin <- as.data.frame(dummy.code(train2$glyburide.metformin))
-names(glyburide.metformin) <- paste('glyburide.metformin.', names(glyburide.metformin), sep = '')
-glipizide.metformin <- as.data.frame(dummy.code(train2$glipizide.metformin))
-names(glipizide.metformin) <- paste('glipizide.metformin.', names(glipizide.metformin), sep = '')
-metformin.rosiglitazone <- as.data.frame(dummy.code(train2$metformin.rosiglitazone))
-names(metformin.rosiglitazone) <- paste('metformin.rosiglitazone.', names(metformin.rosiglitazone), sep = '')
-glimepiride.pioglitazone <- as.data.frame(dummy.code(train2$glimepiride.pioglitazone))
-names(glimepiride.pioglitazone) <- paste('glimepiride.pioglitazone.', names(glimepiride.pioglitazone), sep = '')
-metformin.pioglitazone <- as.data.frame(dummy.code(train2$metformin.pioglitazone))
-names(metformin.pioglitazone) <- paste('metformin.pioglitazone', names(metformin.pioglitazone), sep = '')
-change <- as.data.frame(dummy.code(train2$change))
-names(change) <- paste('change.', names(change), sep = '')
-ageGrp <- as.data.frame(dummy.code(train2$ageGrp))
-names(ageGrp) <- paste('ageGrp.', names(ageGrp), sep = '')
-diabetesMed <- as.data.frame(dummy.code(train2$diabetesMed))
-names(diabetesMed) <- paste('diabetesMed.', names(diabetesMed), sep = '')
-
-train2 <- cbind(train2, gender, race, admission_type_id, discharge_disposition_id, admission_source_id, diag_1, diag_2, diag_3,
-                max_glu_serum, A1Cresult, metformin, repaglinide, nateglinide, chlorpropamide, glimepiride, acetohexamide,
-                glipizide, glyburide, tolbutamide, pioglitazone, rosiglitazone, acarbose, miglitol, troglitazone, tolazamide,
-                insulin, glyburide.metformin, glipizide.metformin, metformin.rosiglitazone, glimepiride.pioglitazone,
-                metformin.pioglitazone, change, ageGrp, diabetesMed)
-
-train2 <- train2 %>% 
-  select(-one_of(c('gender', 'race', 'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
-                   'diag_1', 'diag_2', 'diag_3',
-                'max_glu_serum', 'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
-                'glimepiride', 'acetohexamide',
-                'glipizide', 'glyburide', 'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
-                'miglitol', 'troglitazone', 'tolazamide',
-                'insulin', 'glyburide.metformin', 'glipizide.metformin', 'metformin.rosiglitazone',
-                'glimepiride.pioglitazone', 'metformin.pioglitazone', 'change',
-                'ageGrp', 'diabetesMed', 'outcome')))
-
-# testing data
-gender <- as.data.frame(dummy.code(test2$gender))
-race <- as.data.frame(dummy.code(test2$race))
-admission_type_id <- as.data.frame(dummy.code(test2$admission_type_id))
-names(admission_type_id) <- paste('admission_type_id.', names(admission_type_id), sep = '')
-discharge_disposition_id <- as.data.frame(dummy.code(test2$discharge_disposition_id))
-names(discharge_disposition_id) <- paste('discharge_disposition_id.', names(discharge_disposition_id), sep = '')
-admission_source_id <- as.data.frame(dummy.code(test2$admission_source_id))
-names(admission_source_id) <- paste('admission_source_id.', names(admission_source_id), sep = '')
-diag_1 <- as.data.frame(dummy.code(test2$diag_1))
-names(diag_1) <- paste('diag_1.', names(diag_1), sep = '')
-diag_2 <- as.data.frame(dummy.code(test2$diag_2))
-names(diag_2) <- paste('diag_2.', names(diag_2), sep = '')
-diag_3 <- as.data.frame(dummy.code(test2$diag_3))
-names(diag_3) <- paste('diag_3.', names(diag_3), sep = '')
-max_glu_serum <- as.data.frame(dummy.code(test2$max_glu_serum))
-names(max_glu_serum) <- paste('max_glu_serum.', names(max_glu_serum), sep = '')
-A1Cresult <- as.data.frame(dummy.code(test2$A1Cresult))
-names(A1Cresult) <- paste('A1Cresult.', names(A1Cresult), sep = '')
-metformin <- as.data.frame(dummy.code(test2$metformin))
-names(metformin) <- paste('metformin.', names(metformin), sep = '')
-repaglinide <- as.data.frame(dummy.code(test2$repaglinide))
-names(repaglinide) <- paste('repaglinide.', names(repaglinide), sep = '')
-nateglinide <- as.data.frame(dummy.code(test2$nateglinide))
-names(nateglinide) <- paste('nateglinide.', names(nateglinide), sep = '')
-chlorpropamide <- as.data.frame(dummy.code(test2$chlorpropamide))
-names(chlorpropamide) <- paste('chlorpropamide.', names(chlorpropamide), sep = '')
-glimepiride <- as.data.frame(dummy.code(test2$glimepiride))
-names(glimepiride) <- paste('glimepiride.', names(glimepiride), sep = '')
-acetohexamide <- as.data.frame(dummy.code(test2$acetohexamide))
-names(acetohexamide) <- paste('acetohexamide.', names(acetohexamide), sep = '')
-glipizide<- as.data.frame(dummy.code(test2$glipizide))
-names(glipizide) <- paste('glipizide.', names(glipizide), sep = '')
-glyburide <- as.data.frame(dummy.code(test2$glyburide))   
-names(glyburide) <- paste('glyburide.', names(glyburide), sep = '')
-tolbutamide <- as.data.frame(dummy.code(test2$tolbutamide))
-names(tolbutamide) <- paste('tolbutamide.', names(tolbutamide), sep = '')
-pioglitazone <- as.data.frame(dummy.code(test2$pioglitazone))
-names(pioglitazone) <- paste('pioglitazone.', names(pioglitazone), sep = '')
-rosiglitazone <- as.data.frame(dummy.code(test2$rosiglitazone))
-names(rosiglitazone) <- paste('rosiglitazone.', names(rosiglitazone), sep = '')
-acarbose <- as.data.frame(dummy.code(test2$acarbose))
-names(acarbose) <- paste('acarbose.', names(acarbose), sep = '')
-miglitol <- as.data.frame(dummy.code(test2$miglitol))
-names(miglitol) <- paste('miglitol.', names(miglitol), sep = '')
-troglitazone <- as.data.frame(dummy.code(test2$troglitazone))
-names(troglitazone) <- paste('troglitazone.', names(troglitazone), sep = '')
-tolazamide <- as.data.frame(dummy.code(test2$tolazamide))
-names(tolazamide) <- paste('tolazamide.', names(tolazamide), sep = '')
-insulin <- as.data.frame(dummy.code(test2$insulin))
-names(insulin) <- paste('insulin.', names(insulin), sep = '')
-glyburide.metformin <- as.data.frame(dummy.code(test2$glyburide.metformin))
-names(glyburide.metformin) <- paste('glyburide.metformin.', names(glyburide.metformin), sep = '')
-glipizide.metformin <- as.data.frame(dummy.code(test2$glipizide.metformin))
-names(glipizide.metformin) <- paste('glipizide.metformin.', names(glipizide.metformin), sep = '')
-metformin.rosiglitazone <- as.data.frame(dummy.code(test2$metformin.rosiglitazone))
-names(metformin.rosiglitazone) <- paste('metformin.rosiglitazone.', names(metformin.rosiglitazone), sep = '')
-glimepiride.pioglitazone <- as.data.frame(dummy.code(test2$glimepiride.pioglitazone))
-names(glimepiride.pioglitazone) <- paste('glimepiride.pioglitazone.', names(glimepiride.pioglitazone), sep = '')
-metformin.pioglitazone <- as.data.frame(dummy.code(test2$metformin.pioglitazone))
-names(metformin.pioglitazone) <- paste('metformin.pioglitazone', names(metformin.pioglitazone), sep = '')
-change <- as.data.frame(dummy.code(test2$change))
-names(change) <- paste('change.', names(change), sep = '')
-ageGrp <- as.data.frame(dummy.code(test2$ageGrp))
-names(ageGrp) <- paste('ageGrp.', names(ageGrp), sep = '')
-diabetesMed <- as.data.frame(dummy.code(test2$diabetesMed))
-names(diabetesMed) <- paste('diabetesMed.', names(diabetesMed), sep = '')
-
-test2 <- cbind(test2, gender, race, admission_type_id, discharge_disposition_id, admission_source_id, diag_1, diag_2, diag_3,
-                max_glu_serum, A1Cresult, metformin, repaglinide, nateglinide, chlorpropamide, glimepiride, acetohexamide,
-                glipizide, glyburide, tolbutamide, pioglitazone, rosiglitazone, acarbose, miglitol, troglitazone, tolazamide,
-                insulin, glyburide.metformin, glipizide.metformin, metformin.rosiglitazone, glimepiride.pioglitazone,
-                metformin.pioglitazone, change, ageGrp, diabetesMed)
-
-test2 <- test2 %>% 
-  select(-one_of(c('gender', 'race', 'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
-                   'diag_1', 'diag_2', 'diag_3',
-                'max_glu_serum', 'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
-                'glimepiride', 'acetohexamide',
-                'glipizide', 'glyburide', 'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
-                'miglitol', 'troglitazone', 'tolazamide',
-                'insulin', 'glyburide.metformin', 'glipizide.metformin', 'metformin.rosiglitazone',
-                'glimepiride.pioglitazone', 'metformin.pioglitazone', 'change',
-                'ageGrp', 'diabetesMed')))
-
-
-
-# And train!
-
-# make a large tunning grid
-knn.tuningGrid <- expand.grid(k = seq(1:30))
-
-train.control <-trainControl(method = "cv",
-                             number = 2,
-                             summaryFunction = twoClassSummary,
-                             classProbs = TRUE,
-                             savePredictions = TRUE
-                             )
-
-model.cv <-train(y = train$outcome,
-                 x = train2,
-                 method = 'knn',
-                 trControl = train.control,
-                 tuneGrid = knn.tuningGrid
-                 )
-
-model.cv
-
-# plot metrics by k tuning grid
-knn.metrics <-data.frame(
-  'k' = model.cv$results$k,
-  'ROC' = model.cv$results$ROC,
-  'Sens' = model.cv$results$Sens,
-  'Spec' = model.cv$results$Spec)
-
-p1 <- knn.metrics %>%
-  ggplot(aes(x = k, y = ROC)) +
-  geom_point() +
-  geom_smooth(method = 'loess')
-
-p2 <- knn.metrics %>%
-  ggplot(aes(x = k, y = Sens)) +
-  geom_point() +
-  geom_smooth(method = 'loess')
-
-p3 <- knn.metrics %>%
-  ggplot(aes(x = k, y = Spec)) +
-  geom_point() +
-  geom_smooth(method = 'loess')
-
-grid.arrange(p1, p2, p3, ncol = 3,
-             top = 'Metrics by k in Tuning Grid')
-
-preds <- predict(model.cv, test2)
-
-confusionMatrix(preds, test2$outcome)
-
-#ROC curves
-pred1 <- prediction(as.numeric(preds), test.y)
-roc.perf1 = performance(pred1, measure = "tpr", x.measure = "fpr")
-auc.val1 <- performance(pred1, measure = "auc")
-auc.val1 <- auc.val1@y.values
-plot(roc.perf1)
-abline(a=0, b= 1)
-text(x = .40, y = .6, paste("AUC = ", round(auc.val1[[1]], 3), sep = ""))
-
 ```
 
 
 ### HeatMap
 ```{r}
-ggplot(data = data,aes(x = data$race, y = data$ageGrp)) +labs(title="(Race & Age) Vs Readmission", y="Patient Age Group", x="Race")+geom_tile(aes(fill = data$outcome))
+ggplot(data = data,aes(x = race, y = ageGrp)) +labs(title="(Race & Age) Vs Readmission", y="Age Group", x="Race")+geom_tile(aes(fill = outcome))
 
-ggplot(data = data, aes(x = data$time_in_hospital, y = data$ageGrp)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = data$outcome))
+ggplot(data = data, aes(x = time_in_hospital, y = ageGrp)) + labs(title="(Time in hospital & Age) Vs Readmission", y="Patient Age Group", x="Time in hospital") + geom_tile(aes(fill = outcome))
 
-ggplot(data = data, aes(x = data$ageGrp, y = data$diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = data$outcome))
+ggplot(data = data, aes(x = ageGrp, y = diag_1)) + labs(title="(Age & Diag_1) Vs Readmission", y="Patient Age Group", x="Daig_1") + geom_tile(aes(fill = outcome))
 
-ggplot(data = data, aes(x = data$ageGrp, y = data$diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = data$outcome))
+ggplot(data = data, aes(x = ageGrp, y = diag_2)) + labs(title="(Age & Diag_2) Vs Readmission", y="Patient Age Group", x="Daig_2") + geom_tile(aes(fill = outcome))
 
-ggplot(data = data, aes(x = data$ageGrp, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = data$outcome))
+ggplot(data = data, aes(x = data$ageGrp, y = data$diag_3)) + labs(title="(Age & Diag_3) Vs Readmission", y="Patient Age Group", x="Daig_3") + geom_tile(aes(fill = outcome))
 
 ```
 
