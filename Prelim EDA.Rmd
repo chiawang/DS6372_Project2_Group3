@@ -420,9 +420,19 @@ varimp1 <- rf.feature.importance[order(rf.feature.importance$MeanDecreaseGini,de
 varimp1
 
 par(mar=c(10,5,1,1)) 
-giniplot <- barplot(t(varimp1[-2]/sum(varimp1[-2])), las=2, cex.names=1,
+giniplot <- barplot(t(varimp1[-2]['MeanDecreaseGini']/sum(varimp1[-2]['MeanDecreaseGini'])),
+                    las=2, cex.names=1,
                     main="Gini Impurity Index Plot")
 
+
+varimp2 <- rf.feature.importance[order(rf.feature.importance$MeanDecreaseAccuracy,decreasing = T),]
+
+varimp2$MeanDecreaseGini
+
+par(mar=c(10,5,1,1)) 
+giniplot <- barplot(t(varimp2[-2]['MeanDecreaseAccuracy']/sum(varimp2[-2]['MeanDecreaseAccuracy'])),
+                    las=2, cex.names=1,
+                    main="Feature Importances Plot")
 ```
 
 Sampling Tuning Test
