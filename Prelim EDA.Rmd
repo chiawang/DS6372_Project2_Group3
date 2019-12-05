@@ -263,7 +263,31 @@ levels(data$race) <- c(levels(data$race), "Missing")
 data$race <- replace_na(data$race, "Missing")
 ```
 
+There are some levels for discharge dispostion that have very few values.
+```{r}
+count(data,data$discharge_disposition_id)
+```
 
+Let's bucket those less than 10 into the "Not Mapped" bucket, which is id 25
+
+```{r}
+data$discharge_disposition_id[data$discharge_disposition_id %in% c(9,10,12,16,17,27)] <- 25
+count(data,data$discharge_disposition_id)
+```
+
+Similarly, let's bucket admission_source_id since the distribution of it isn't very even. This can create issues when splitting the data set up and not having the same levels in both the train and test sets.
+```{r}
+count(data,data$admission_source_id)
+```
+
+Levels 1, 2, and 3 will be bucketed into 1 (Admitted because of Referral). Level 7 will remain as is, admitted by Emergency Room. Everything else will be 4 (Otherwise)
+```{r}
+`%!in%` = Negate(`%in%`)
+data$admission_source_id[data$admission_source_id %in% c(1,2,3)] <- 1
+data$admission_source_id[data$admission_source_id %!in% c(1,2,3,7)] <- 4
+data$admission_source_id <- as.factor(data$admission_source_id)
+count(data,data$admission_source_id)
+```
 
 Lastly, let's create an outcome column that is Yes if admitted within 30 days, and No for everything else. Then remove the readmitted column. We'll use "outcome" as the response variable.
 ```{r}
@@ -475,7 +499,7 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 
 Take the coefficients from above, and create a glm model using them since glmnet/lasso will bias the coefficients towards zero. Note, each time I restart R, I get a different set of coefficients for the same seed value??
 ```{r}
-f <- as.formula(outcome ~ discharge_disposition_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + number_diagnoses + metformin + diabetesMed + ageGrp)
+f <- as.formula(outcome ~ race + discharge_disposition_id + admission_type_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + diag_3 + number_diagnoses + A1Cresult + metformin + acarbose + diabetesMed + ageGrp)
 
 #f <- as.formula(outcome ~ discharge_disposition_id + number_inpatient + diag_1)
 
@@ -502,6 +526,7 @@ abline(a=0, b= 1) #Ref line indicating poor performance
 text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
+Update! This function is not needed now since we went back and rebucketed those disposition values with a small frequency into a different bucket. But keep here for now in case we need it.
 Stole the function from stack overflow. I think in general this will always be an issue. Missing factor levels between test and train sets.
 https://stackoverflow.com/questions/4285214/predict-lm-with-an-unknown-factor-level-in-test-data
 ```{r}
@@ -579,7 +604,8 @@ Run model against test set, using simple fit, no interaction. Use the model crea
 ```{r}
 #Run model from training set on test set
 set.seed(9560)
-fit.pred1 <- predict(glm.simple, newdata = remove_missing_levels(fit=glm.simple, test_data = test), type = "response")
+#fit.pred1 <- predict(glm.simple, newdata = remove_missing_levels(fit=glm.simple, test_data = test), type = "response")
+fit.pred1 <- predict(glm.simple, newdata = test, type = "response")
 
 #ROC curves
 pred1 <- prediction(fit.pred1, test.y)
@@ -632,7 +658,8 @@ Now apply it against test set
 ```{r}
 #Run model from descision tree predictors
 set.seed(9560)
-fit.pred.tree <- predict(glm.tree, newdata = remove_missing_levels(fit=glm.tree, test_data = test), type = "response")
+#fit.pred.tree <- predict(glm.tree, newdata = remove_missing_levels(fit=glm.tree, test_data = test), type = "response")
+fit.pred.tree <- predict(glm.tree, newdata = test, type = "response")
 
 #ROC curves
 pred.tree <- prediction(fit.pred.tree, test.y)
@@ -677,7 +704,7 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 
 Now use coefficients determined above, create a new formula and create complex model
 ```{r}
-f <- as.formula(outcome ~ race + admission_type_id + discharge_disposition_id + admission_source_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + diag_3 + number_diagnoses + A1Cresult + metformin + glimepiride + acarbose + diabetesMed + ageGrp + I(number_inpatient^.5))
+f <- as.formula(outcome ~ discharge_disposition_id + time_in_hospital + num_lab_procedures + num_medications + number_emergency + number_inpatient + diag_1 + diag_2 + number_diagnoses + metformin + diabetesMed + ageGrp + I(number_inpatient^.5))
 
 glm.complex <- glm(formula = f, family = "binomial", data = train)
 coef(glm.complex)
@@ -705,7 +732,8 @@ text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```{r}
 #Run model from complex train on test
 set.seed(9560)
-fit.pred.complex <- predict(glm.complex, newdata = remove_missing_levels(fit=glm.complex, test_data = test), type = "response")
+#fit.pred.complex <- predict(glm.complex, newdata = remove_missing_levels(fit=glm.complex, test_data = test), type = "response")
+fit.pred.complex <- predict(glm.complex, newdata = test, type = "response")
 
 #ROC curves
 pred1 <- prediction(fit.pred.complex, test.y)
@@ -716,8 +744,6 @@ plot(roc.perf.complex)
 abline(a=0, b= 1)
 text(x = .40, y = .6,paste("AUC = ", round(auc.val1[[1]],3), sep = ""))
 ```
-
-Notice above we got a better training score with the complext model, we ended up getting a lower score when applying to the test set.
 
 ### K-NN
 
@@ -991,7 +1017,51 @@ abline(a=0, b= 1)
 text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
+### PCA
+```{r}
+#Another option here would be to do PCA among the continous predictors to see
+#if they seperate out.  Or a heatmap.
+pc.result<-prcomp(data[,c("time_in_hospital","num_lab_procedures","number_inpatient","num_medications","number_diagnoses","number_emergency")],scale.=TRUE)
+pc.scores<-pc.result$x
+pc.scores<-data.frame(pc.scores)
+pc.scores$outcome<-data$outcome
 
+#Loadings for interpretation
+pc.result$rotation
+
+#Scree plot
+pc.eigen<-(pc.result$sdev)^2
+pc.prop<-pc.eigen/sum(pc.eigen)
+pc.cumprop<-cumsum(pc.prop)
+plot(1:6,pc.prop,type="l",main="Scree Plot",ylim=c(0,1),xlab="PC #",ylab="Proportion of Variation")
+lines(1:6,pc.cumprop,lty=3)
+
+#Use ggplot2 to plot the first few pc's
+
+ggplot(data = pc.scores, aes(x = PC1, y = PC2)) +
+  geom_point(aes(col=outcome), size=1)+
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  ggtitle("PCA plot ...")
+
+ggplot(data = pc.scores, aes(x = PC1, y = PC3)) +
+  geom_point(aes(col=outcome), size=1)+
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  ggtitle("PCA plot ...")
+
+ggplot(data = pc.scores, aes(x = PC3, y = PC6)) +
+  geom_point(aes(col=outcome), size=1)+
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  ggtitle("PCA plot ...")
+
+ggplot(data = pc.scores, aes(x = PC5, y = PC6)) +
+  geom_point(aes(col=outcome), size=1)+
+  geom_hline(yintercept = 0, colour = "gray65") +
+  geom_vline(xintercept = 0, colour = "gray65") +
+  ggtitle("PCA plot ...")
+```
 
 
 
