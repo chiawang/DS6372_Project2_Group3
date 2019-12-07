@@ -1005,6 +1005,7 @@ text(x = .40, y = .6, paste("AUC = ", round(auc.val1[[1]], 3), sep = ""))
 ### LDA
 Train Set
 ```{r}
+require("MASS")
 fit.lda <- lda(outcome ~ time_in_hospital + num_lab_procedures + num_procedures + num_medications + number_outpatient + number_emergency + number_inpatient, data = train)
 pred.lda <- predict(fit.lda, newdata = train)
  
