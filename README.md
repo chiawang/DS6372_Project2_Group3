@@ -5,9 +5,9 @@
 * Date: Nov 2019
 
 # Files:
-* Code: Project2.Rmd 
-* Datasources: diabetic_data.csv, IDs_mapping.csv
+* Source Code: Project2.Rmd 
 * Paper: paper2.docx 
+* Datasources: diabetic_data.csv, IDs_mapping.csv
 
 # Resources
 * https://archive.ics.uci.edu/ml/datasets/diabetes+130-us+hospitals+for+years+1999-2008
