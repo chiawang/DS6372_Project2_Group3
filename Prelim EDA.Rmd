@@ -526,6 +526,25 @@ abline(a=0, b= 1) #Ref line indicating poor performance
 text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
 ```
 
+Assumption plots for the simple model
+
+```{r}
+
+f <- as.formula(outcome ~ discharge_disposition_id + number_inpatient + diag_1 + number_diagnoses)
+
+glm.simple <- glm(formula = f, family = "binomial", data = train)
+
+plot(glm.simple)
+```
+
+Lack of fit test
+
+```{r}
+hoslem.test(glm.simple$y, fitted(glm.simple), g=10)
+```
+
+We fail to reject the null hypothesis that the model fits the data.
+
 Update! This function is not needed now since we went back and rebucketed those disposition values with a small frequency into a different bucket. But keep here for now in case we need it.
 Stole the function from stack overflow. I think in general this will always be an issue. Missing factor levels between test and train sets.
 https://stackoverflow.com/questions/4285214/predict-lm-with-an-unknown-factor-level-in-test-data
