@@ -6,7 +6,7 @@
 
 # Files:
 * Source Code: Project2.Rmd 
-* Paper: paper2.docx 
+* Paper: Project2.docx
 * Datasources: diabetic_data.csv, IDs_mapping.csv
 
 # Resources
