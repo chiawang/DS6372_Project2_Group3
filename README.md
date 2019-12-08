@@ -5,7 +5,7 @@
 * Date: Nov 2019
 
 # Files:
-* Source Code: Project2.Rmd 
+* Source Code: prelim eda.rmd 
 * Paper: Project2.docx
 * Datasources: diabetic_data.csv, IDs_mapping.csv
 
